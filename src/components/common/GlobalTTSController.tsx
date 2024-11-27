@@ -1,103 +1,160 @@
-import React, { useState } from 'react';
-import { Volume2, PauseCircle, PlayCircle, Settings } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { Volume2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Slider } from '@/components/ui/slider';
 import { useTTS } from '@/contexts/TTSContext';
-import { VOICES } from '@/lib/config/ttsConfig';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TTS_VOICES } from '@/lib/config/ttsConfig';
 
 export function GlobalTTSController() {
-  const { voice, setVoice, rate, setRate, isPlaying, playText, stopPlaying, selectedText } = useTTS();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { 
+    isPlaying,
+    currentText,
+    voice,
+    rate,
+    volume,
+    pitch,
+    loopMode,
+    setVoice,
+    setRate,
+    setVolume,
+    setPitch,
+    setLoopMode,
+    togglePlayback,
+    stopPlayback
+  } = useTTS();
 
-  const handleMouseEnter = () => {
-    setIsSettingsOpen(true);
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === ' ' && containerRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        togglePlayback();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [togglePlayback]);
+
+  const handleVoiceChange = (v: string) => {
+    setVoice(v);
   };
-
-  const handleMouseLeave = () => {
-    setIsSettingsOpen(false);
-  };
-
-  const handlePlayPause = async () => {
-    if (isPlaying) {
-      stopPlaying();
-    } else if (selectedText) {
-      await playText(selectedText);
-    }
-  };
-
-  if (!selectedText && !isPlaying) {
-    return null;
-  }
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {isSettingsOpen && (
-        <div className="bg-background border rounded-lg shadow-lg p-4 mb-2 min-w-[280px]">
-          <div className="space-y-4">
+    <div ref={containerRef} className="flex items-center space-x-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={togglePlayback}
+        disabled={!currentText}
+      >
+        <Volume2 className={isPlaying ? 'animate-pulse' : ''} />
+      </Button>
+      
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <Settings />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80">
+          <div className="grid gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium mb-2 block">Voice</label>
-              <RadioGroup
-                value={voice}
-                onValueChange={setVoice}
-                className="grid grid-cols-1 gap-2"
-              >
-                {VOICES.map((v) => (
-                  <div key={v.value} className="flex items-center space-x-2 rounded-md border p-2 cursor-pointer hover:bg-accent">
-                    <RadioGroupItem value={v.value} id={v.value} />
-                    <Label htmlFor={v.value} className="flex-grow cursor-pointer">
-                      {v.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+              <h4 className="font-medium leading-none">Voice Settings</h4>
+              <p className="text-sm text-muted-foreground">
+                Adjust the voice parameters for text-to-speech.
+              </p>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Speed</label>
-              <div className="flex items-center gap-2">
+            <div className="grid gap-2">
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label htmlFor="voice">Voice</label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="col-span-2">
+                      {voice}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {Object.entries(TTS_VOICES).map(([region, voices]) =>
+                      Object.entries(voices).map(([style, voiceId]) => (
+                        <DropdownMenuItem
+                          key={voiceId}
+                          onSelect={() => handleVoiceChange(voiceId)}
+                        >
+                          {`${region} ${style}`}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label htmlFor="rate">Speed</label>
                 <Slider
-                  value={[rate]}
+                  id="rate"
                   min={0.5}
                   max={2}
                   step={0.1}
+                  value={[rate]}
                   onValueChange={([value]) => setRate(value)}
-                  className="flex-1"
+                  className="col-span-2"
                 />
-                <span className="text-sm w-12">{rate}x</span>
+              </div>
+              
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label htmlFor="volume">Volume</label>
+                <Slider
+                  id="volume"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  value={[volume]}
+                  onValueChange={([value]) => setVolume(value)}
+                  className="col-span-2"
+                />
+              </div>
+              
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label htmlFor="pitch">Pitch</label>
+                <Slider
+                  id="pitch"
+                  min={0.5}
+                  max={2}
+                  step={0.1}
+                  value={[pitch]}
+                  onValueChange={([value]) => setPitch(value)}
+                  className="col-span-2"
+                />
+              </div>
+              
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label htmlFor="loop">Loop Mode</label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="col-span-2">
+                      {loopMode}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onSelect={() => setLoopMode('none')}>
+                      None
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setLoopMode('sentence')}>
+                      Sentence
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setLoopMode('all')}>
+                      All
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      <div className="flex gap-2 items-center bg-background border rounded-lg p-2 shadow-lg">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handlePlayPause}
-        >
-          {isPlaying ? (
-            <PauseCircle className="h-4 w-4" />
-          ) : (
-            <PlayCircle className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

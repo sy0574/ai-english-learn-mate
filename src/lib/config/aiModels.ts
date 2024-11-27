@@ -1,43 +1,43 @@
-import type { ModelConfig, ModelId } from '@/lib/types/aiModels';
+import type { ModelConfig, ModelId, ModelAssignments, AnalysisTask } from '@/lib/types/aiModels';
 
 // Available AI models configuration
-export const AI_MODELS = {
+export const AI_MODELS: Record<ModelId, ModelConfig> = {
   'step/step-2-16k': {
     name: 'Step-2-16k',
     provider: 'Step',
     contextWindow: 16000,
     costPer1kTokens: 0.001,
-    strengthAreas: ['multilingual', 'fast responses', 'secure processing'] as const,
+    strengthAreas: ['multilingual', 'fast responses', 'secure processing'],
   },
   'openai/gpt-4o-mini': {
     name: 'GPT-4 Mini',
     provider: 'OpenAI',
     contextWindow: 8000,
     costPer1kTokens: 0.002,
-    strengthAreas: ['general knowledge', 'code analysis'] as const,
+    strengthAreas: ['general knowledge', 'code analysis'],
   },
   'google/gemini-flash-1.5': {
     name: 'Gemini Flash',
     provider: 'Google',
     contextWindow: 12000,
     costPer1kTokens: 0.0015,
-    strengthAreas: ['fast inference', 'cost effective'] as const,
+    strengthAreas: ['fast inference', 'cost effective'],
   },
   'anthropic/claude-3.5-sonnet': {
     name: 'Claude 3.5 Sonnet',
     provider: 'Anthropic',
     contextWindow: 200000,
     costPer1kTokens: 0.003,
-    strengthAreas: ['long context', 'detailed analysis'] as const,
+    strengthAreas: ['long context', 'detailed analysis'],
   },
   'anthropic/claude-3-haiku': {
     name: 'Claude 3 Haiku',
     provider: 'Anthropic',
     contextWindow: 100000,
     costPer1kTokens: 0.0025,
-    strengthAreas: ['quick responses', 'basic analysis'] as const,
+    strengthAreas: ['quick responses', 'basic analysis'],
   }
-} as const satisfies Record<string, ModelConfig>;
+};
 
 // Default model assignments for different analysis tasks
 export type AnalysisTask = 
@@ -45,9 +45,6 @@ export type AnalysisTask =
   | 'thematicAnalysis'
   | 'vocabularyAnalysis'
   | 'backgroundKnowledge';
-
-// Model assignments type
-export type ModelAssignments = Record<AnalysisTask, ModelId>;
 
 // Default model assignments
 export const DEFAULT_MODEL_ASSIGNMENTS: ModelAssignments = {
@@ -58,20 +55,3 @@ export const DEFAULT_MODEL_ASSIGNMENTS: ModelAssignments = {
 };
 
 export type ModelId = keyof typeof AI_MODELS;
-
-// User preferences for model assignments
-export interface ModelAssignments {
-  sentenceStructure: ModelId;
-  thematicAnalysis: ModelId;
-  vocabularyAnalysis: ModelId;
-  backgroundKnowledge: ModelId;
-}
-
-// Model configuration type
-export interface ModelConfig {
-  name: string;
-  provider: string;
-  contextWindow: number;
-  costPer1kTokens: number;
-  strengthAreas: string[];
-}

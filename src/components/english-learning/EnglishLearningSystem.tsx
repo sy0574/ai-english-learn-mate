@@ -92,7 +92,6 @@ export default function EnglishLearningSystem() {
             <ReadingSection 
               currentArticle={selectedArticle}
               onArticleUpload={handleArticleUpload}
-              onAnalysisComplete={() => {}}
               onWordSelect={handleWordSelect}
               onSentenceSelect={handleSentenceSelect}
               selectedSentence={selectedSentence}
@@ -104,7 +103,7 @@ export default function EnglishLearningSystem() {
               onAiAnalysisComplete={handleAiAnalysisComplete}
               selectedWord={selectedWord}
               selectedSentence={selectedSentence}
-              onSentenceSelect={handleSentenceSelect}
+              _onSentenceSelect={handleSentenceSelect}
             />
           </div>
         </TabsContent>
