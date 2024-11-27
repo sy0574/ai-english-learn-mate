@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 144 24% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 144 24% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 144 24% 12%;
+    --primary: 142 43% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 144 24% 96%;
+    --secondary-foreground: 144 24% 12%;
+    --muted: 144 24% 96%;
+    --muted-foreground: 144 24% 40%;
+    --accent: 144 24% 96%;
+    --accent-foreground: 144 24% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 144 24% 92%;
+    --input: 144 24% 92%;
+    --ring: 142 43% 45%;
+    --radius: 0.75rem;
+  }
+ 
+  .dark {
+    --background: 144 24% 8%;
+    --foreground: 0 0% 98%;
+    --card: 144 24% 8%;
+    --card-foreground: 0 0% 98%;
+    --popover: 144 24% 8%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142 43% 45%;
+    --primary-foreground: 144 24% 12%;
+    --secondary: 144 24% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 144 24% 12%;
+    --muted-foreground: 144 24% 60%;
+    --accent: 144 24% 12%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 144 24% 16%;
+    --input: 144 24% 16%;
+    --ring: 142 43% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  /* Apple-style card */
+  .apple-card {
+    @apply bg-white/70 backdrop-blur-xl border border-[#E5E5E5] shadow-sm;
+    @apply dark:bg-black/70 dark:border-[#2C2C2C];
+  }
+
+  /* Apple-style inputs */
+  .apple-input {
+    @apply bg-[#F5F5F7] border-transparent rounded-lg px-4 py-2;
+    @apply hover:bg-[#EBEBED] focus:bg-white focus:border-goblin-500 focus:ring-1 focus:ring-goblin-500;
+    @apply dark:bg-[#1C1C1E] dark:hover:bg-[#2C2C2E] dark:focus:bg-black;
+    @apply transition-all duration-200;
+  }
+
+  /* Apple-style primary button */
+  .apple-button-primary {
+    @apply bg-goblin-500 text-white rounded-lg px-4 py-2;
+    @apply hover:bg-goblin-600 active:bg-goblin-700;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-all duration-200;
+  }
+
+  /* Apple-style secondary button */
+  .apple-button-secondary {
+    @apply bg-[#F5F5F7] text-[#1D1D1F] rounded-lg px-4 py-2;
+    @apply hover:bg-[#EBEBED] active:bg-[#E1E1E3];
+    @apply dark:bg-[#1C1C1E] dark:text-white dark:hover:bg-[#2C2C2E] dark:active:bg-[#3C3C3E];
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-all duration-200;
+  }
+
+  /* Apple-style text */
+  .apple-text-primary {
+    @apply text-[#1D1D1F] dark:text-white;
+  }
+
+  .apple-text-secondary {
+    @apply text-[#6E6E73] dark:text-[#86868B];
+  }
+
+  /* Apple-style animations */
+  .apple-hover-scale {
+    @apply transition-transform duration-200 hover:scale-102;
+  }
+
+  /* Apple-style scrollbar */
+  .apple-scrollbar {
+    @apply overflow-auto;
+    scrollbar-width: thin;
+    scrollbar-color: #E1E1E1 transparent;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #E1E1E1;
+    border-radius: 4px;
+  }
+
+  .dark .apple-scrollbar {
+    scrollbar-color: #3C3C3E transparent;
+  }
+
+  .dark .apple-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #3C3C3E;
+  }
+
+  /* Word highlight animation */
+  @keyframes highlight {
+    0% {
+      background-color: transparent;
+    }
+    50% {
+      background-color: hsl(var(--primary) / 0.1);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  .animate-highlight {
+    animation: highlight 2s ease-in-out;
+  }
+
+  /* Sentence component animation */
+  @keyframes float {
+    0% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+    100% {
+      transform: translateY(0px);
+    }
+  }
+
+  .sentence-component-animate {
+    animation: float 2s ease-in-out infinite;
+  }
+}
