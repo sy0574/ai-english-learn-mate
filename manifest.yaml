@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-english-learn-mate
+  labels:
+    app: ai-english-learn-mate
+  namespace: bolone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-english-learn-mate
+  template:
+    metadata:
+      labels:
+        app: ai-english-learn-mate
+    spec:
+      containers:
+        - name: ai-english-learn-mate
+          image: ${image}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5173
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-english-learn-mate
+  namespace: bolone
+  labels:
+    app: ai-english-learn-mate
+spec:
+  clusterIP: None
+  clusterIPs:
+    - None
+  ports:
+    - name: http
+      port: 5173
+      protocol: TCP
+      targetPort: 5173
+  selector:
+    app: ai-english-learn-mate
+  sessionAffinity: None
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-english-learn-mate
+  namespace: bolone
+  labels:
+    app: ai-english-learn-mate
+spec:
+  rules:
+    - host: ai-english-learn-mate.bolone.cn
+      http:
+        paths:
+          - backend:
+              service:
+                name: ai-english-learn-mate
+                port:
+                  number: 5173
+            path: /
+            pathType: ImplementationSpecific
+  tls:
+    - hosts:
+        - ai-english-learn-mate.bolone.cn
+      secretName: ssl-bolone.cn-secret
