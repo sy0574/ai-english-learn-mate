@@ -137,7 +137,7 @@ export default function PricingPage() {
       <div className="text-center text-muted-foreground">
         <p>需要更多信息？</p>
         <p>
-          企业版用户可以联系我们的销售团队获取定制方案
+          企业版用户可以联系我们的老师获取定制方案
           <Button variant="link">联系我们</Button>
         </p>
       </div>

@@ -17,6 +17,7 @@ export class AIModelManager {
   private modelConfigs: Partial<Record<ModelId, ModelConfigUpdate>>;
   private promptManager: PromptManager;
   private lastRequestTime: Record<ModelId, number> = {
+    'qwen/qwq-32b-preview': 0,
     'step/step-2-16k': 0,
     'openai/gpt-4o-mini': 0,
     'google/gemini-flash-1.5': 0,
@@ -223,44 +224,72 @@ export class AIModelManager {
           max_tokens: modelConfig.maxTokens ?? 2000,
           top_p: modelConfig.topP ?? 1,
           frequency_penalty: modelConfig.frequencyPenalty ?? 0,
-          presence_penalty: modelConfig.presencePenalty ?? 0
+          presence_penalty: modelConfig.presencePenalty ?? 0,
+          stream: false
         };
 
         console.log('Request body:', requestBody);
 
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify(requestBody)
-        });
+        // 根据不同的API提供商设置不同的请求头
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        };
 
-        console.log('API Response Status:', response.status);
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('API Error Response:', errorData);
-          throw new APIError(`API请求失败: ${response.status} ${response.statusText}`, response.status);
+        // 只为OpenRouter添加额外的头部
+        if (!isStepAI) {
+          headers['HTTP-Referer'] = window.location.origin;
+          headers['X-Title'] = 'English Learning System';
         }
 
-        const data = await response.json();
-        console.log('Raw API Response:', data);
+        try {
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(requestBody)
+          });
 
-        if (!this.validateResponse(data)) {
-          console.error('Invalid API response format:', data);
-          throw new APIError('API返回格式无效');
+          console.log('API Response Status:', response.status);
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('API Error Response:', errorData);
+            throw new APIError(`API请求失败: ${response.status} ${response.statusText}`, response.status);
+          }
+
+          const data = await response.json();
+          console.log('Raw API Response:', data);
+
+          if (!this.validateResponse(data)) {
+            console.error('Invalid API response format:', data);
+            throw new APIError('API返回格式无效');
+          }
+
+          // 根据不同的API提供商处理响应格式
+          let responseContent: string;
+          if (isStepAI) {
+            responseContent = data.choices?.[0]?.message?.content;
+            if (!responseContent) {
+              console.error('Empty Step AI response content:', data);
+              throw new APIError('Step AI返回内容为空');
+            }
+          } else {
+            // OpenRouter响应处理
+            responseContent = data.choices?.[0]?.message?.content;
+            if (!responseContent) {
+              console.error('Empty OpenRouter response content:', data);
+              throw new APIError('OpenRouter返回内容为空');
+            }
+          }
+
+          return responseContent;
+        } catch (error) {
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            console.error('Network error:', error);
+            throw new APIError('无法连接到AI服务器，请检查网络连接', undefined, 'network');
+          }
+          throw error;
         }
-
-        const responseContent = data.choices?.[0]?.message?.content || data.content || '';
-        console.log('Extracted content:', responseContent);
-
-        if (!responseContent) {
-          throw new APIError('API返回内容为空');
-        }
-
-        return responseContent;
       } catch (e) {
         lastError = handleAPIError(e as Error);
         console.error(`API request failed (attempt ${retryCount + 1}):`, lastError);
@@ -286,8 +315,7 @@ export class AIModelManager {
   private validateResponse(data: any): boolean {
     if (!data || typeof data !== 'object') return false;
     
-    // 支持不同的API响应格式
-    if (typeof data.content === 'string') return true;
+    // Validate OpenRouter response format
     if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
       const message = data.choices[0].message;
       return message && typeof message.content === 'string';

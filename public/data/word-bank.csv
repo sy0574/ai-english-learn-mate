@@ -1,11 +1,51 @@
 word,translation,part_of_speech,level,tags,examples,variations
 coffee,咖啡,n.,junior,"beverage,daily","I need a cup of coffee in the morning.,The coffee shop is around the corner.",coffees
 tree,树,n.,junior,"nature,plant","The old tree provides shade in summer.,Birds built a nest in the tree.",trees
+book,书,n.,junior,"education,object","I love reading books.,She bought a new book.",books
+apple,苹果,n.,junior,"fruit,food","An apple a day keeps the doctor away.,She ate a red apple.",apples
+student,学生,n.,junior,"education,person","The student studies hard.,All students must wear uniforms.",students
+water,水,n.,junior,"nature,drink","I drink eight glasses of water a day.,The water is clean.",waters
+friend,朋友,n.,junior,"relationship,social","She is my best friend.,I made new friends at school.",friends
+school,学校,n.,junior,"education,place","The school is near my home.,I go to school by bus.",schools
+teacher,老师,n.,junior,"education,person","The teacher explains clearly.,Our teacher is very kind.",teachers
+family,家庭,n.,junior,"relationship,social","Family is important.,I love my family.",families
+computer,电脑,n.,senior,"technology,device","My computer is broken.,He bought a new computer.",computers
+internet,互联网,n.,senior,"technology,communication","The internet is slow today.,We need internet access.",
+software,软件,n.,senior,"technology,computing","The software needs updating.,This software is expensive.",
+program,程序,n.,senior,"technology,computing","The program crashed.,I wrote a new program.",programs
+science,科学,n.,senior,"academic,subject","Science is fascinating.,He studies computer science.",sciences
+environment,环境,n.,senior,"nature,society","We must protect the environment.,The work environment is good.",environments
+technology,技术,n.,senior,"science,development","Technology changes rapidly.,New technology makes life easier.",technologies
+culture,文化,n.,senior,"society,humanities","Every country has its own culture.,We should respect different cultures.",cultures
+society,社会,n.,senior,"humanities,organization","Society is changing.,We live in a modern society.",societies
+education,教育,n.,senior,"academic,development","Education is important.,She works in education.",
+vocabulary,词汇,n.,cet4,"language,education","Her vocabulary is extensive.,You need to expand your vocabulary.",vocabularies
+grammar,语法,n.,cet4,"language,education","English grammar is complex.,You need to study grammar.",
+sentence,句子,n.,cet4,"language,education","This sentence is correct.,Write a complete sentence.",sentences
+paragraph,段落,n.,cet4,"writing,education","The paragraph is well-written.,Each paragraph has a main idea.",paragraphs
+literature,文学,n.,cet4,"humanities,art","She loves literature.,Classical literature is profound.",
+experiment,实验,n.,cet4,"science,method","The experiment failed.,We need to repeat the experiment.",experiments
+evidence,证据,n.,cet4,"science,logic","The evidence is clear.,We need more evidence.",
+theory,理论,n.,cet4,"science,academic","This theory is widely accepted.,It's just a theory.",theories
+method,方法,n.,cet4,"education,process","This method works well.,Try a different method.",methods
+practice,练习,v.,cet4,"education,action","Practice makes perfect.,You need more practice.",practices
+essay,论文,n.,cet6,"writing,education","The essay is due tomorrow.,She wrote an excellent essay.",essays
+thesis,论文,n.,cet6,"academic,writing","His thesis was published.,She's working on her thesis.",theses
+research,研究,n.,cet6,"academic,education","The research is ongoing.,We need more research.",researches
+analysis,分析,n.,cet6,"academic,method","The analysis shows interesting results.,We need detailed analysis.",analyses
+hypothesis,假设,n.,cet6,"science,academic","The hypothesis was proven.,We need to test this hypothesis.",hypotheses
+methodology,方法论,n.,cet6,"academic,research","The methodology is sound.,We need to improve our methodology.",methodologies
+innovation,创新,n.,cet6,"technology,business","Innovation drives progress.,This company focuses on innovation.",innovations
+perspective,观点,n.,cet6,"thinking,academic","That's an interesting perspective.,We need different perspectives.",perspectives
+evaluation,评估,n.,cet6,"education,method","The evaluation process is fair.,We need regular evaluations.",evaluations
+conclusion,结论,n.,cet6,"academic,writing","The conclusion is convincing.,Draw your own conclusions.",conclusions
 botanical,植物学的,adj.,advanced,"science,academic","She studies botanical sciences.,The botanical garden has rare species.",
-caffeine,咖啡因,n.,senior,"chemistry,science","Caffeine can help you stay awake.,Too much caffeine isn't good for health.",
-pesticide,杀虫剂,n.,cet6,"agriculture,chemistry","Farmers use pesticides to protect crops.,Organic farming avoids pesticides.",pesticides
-inhibitor,抑制剂,n.,advanced,"science,chemistry","This chemical acts as a growth inhibitor.,The drug is a natural inhibitor.",inhibitors
-nutrient,营养物质,n.,cet4,"biology,health","Plants need nutrients to grow.,The soil is rich in nutrients.",nutrients
-dopamine,多巴胺,n.,advanced,"biology,science","Exercise increases dopamine levels.,Dopamine affects mood and behavior.",
-analogy,类比,n.,cet6,"language,education","He explained it using a simple analogy.,The teacher used an analogy to teach.",analogies
-dilemma,困境,n.,cet4,"problem,situation","She faced a moral dilemma.,We're in a difficult dilemma.",dilemmas
+algorithm,算法,n.,advanced,"computing,mathematics","This algorithm is efficient.,We need a better algorithm.",algorithms
+database,数据库,n.,advanced,"technology,computing","The database is secure.,We need to update the database.",databases
+framework,框架,n.,advanced,"technology,development","This framework is popular.,The framework makes development easier.",frameworks
+interface,接口,n.,advanced,"technology,computing","The interface is user-friendly.,We need to design a better interface.",interfaces
+paradigm,范式,n.,advanced,"academic,philosophy","This represents a new paradigm.,The paradigm is shifting.",paradigms
+synthesis,综合,n.,advanced,"science,method","The synthesis was successful.,Chemical synthesis requires precision.",syntheses
+optimization,优化,n.,advanced,"computing,mathematics","Code optimization is important.,We need performance optimization.",optimizations
+architecture,架构,n.,advanced,"technology,design","The system architecture is robust.,We need to redesign the architecture.",architectures
+implementation,实现,n.,advanced,"technology,development","The implementation was successful.,This needs careful implementation.",implementations

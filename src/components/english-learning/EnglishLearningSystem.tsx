@@ -38,9 +38,9 @@ export default function EnglishLearningSystem() {
     const success = await saveArticle(newArticle);
     if (success) {
       setSelectedArticle(newArticle);
-      toast.success('文章上传成功');
+      toast.success('添加成功');
     } else {
-      toast.error('文章上传失败');
+      toast.error('添加失败');
     }
   };
 
@@ -74,7 +74,7 @@ export default function EnglishLearningSystem() {
                          data-[state=active]:border-primary rounded-none px-6"
             >
               <Book className="w-4 h-4 mr-2" />
-              阅读精练
+              深度学习
             </TabsTrigger>
             <TabsTrigger 
               value="library"
@@ -88,14 +88,17 @@ export default function EnglishLearningSystem() {
         </div>
 
         <TabsContent value="reading" className="flex-1 overflow-hidden p-4 sm:p-6 lg:p-8">
-          <div className="h-full grid lg:grid-cols-[1fr_1fr] gap-6">
-            <ReadingSection 
-              currentArticle={selectedArticle}
-              onArticleUpload={handleArticleUpload}
-              onWordSelect={handleWordSelect}
-              onSentenceSelect={handleSentenceSelect}
-              selectedSentence={selectedSentence}
-            />
+          <div className="h-full flex gap-6">
+            <div className="flex-1 min-w-0">
+              <ReadingSection 
+                currentArticle={selectedArticle}
+                onArticleUpload={handleArticleUpload}
+                onAnalysisComplete={() => {}}
+                onWordSelect={handleWordSelect}
+                onSentenceSelect={handleSentenceSelect}
+                selectedSentence={selectedSentence}
+              />
+            </div>
             <AnalysisSection 
               selectedText={selectedArticle?.content || ''}
               analysis={analysis}
@@ -103,7 +106,6 @@ export default function EnglishLearningSystem() {
               onAiAnalysisComplete={handleAiAnalysisComplete}
               selectedWord={selectedWord}
               selectedSentence={selectedSentence}
-              _onSentenceSelect={handleSentenceSelect}
             />
           </div>
         </TabsContent>

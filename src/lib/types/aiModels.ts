@@ -5,7 +5,7 @@ export interface ModelConfig {
   provider: string;
   contextWindow: number;
   costPer1kTokens: number;
-  strengthAreas: string[];
+  strengthAreas: readonly string[];
   temperature?: number;
   maxTokens?: number;
   topP?: number;
@@ -14,17 +14,6 @@ export interface ModelConfig {
 }
 
 export type ModelConfigUpdate = Partial<Omit<ModelConfig, 'name' | 'provider'>>;
-
-export type AnalysisTask = 'sentenceStructure' | 'thematicAnalysis' | 'vocabularyAnalysis' | 'backgroundKnowledge';
-
-export type ModelId = 'step/step-2-16k' | 'openai/gpt-4o-mini' | 'google/gemini-flash-1.5' | 'anthropic/claude-3.5-sonnet';
-
-export interface ModelAssignments {
-  sentenceStructure: ModelId;
-  thematicAnalysis: ModelId;
-  vocabularyAnalysis: ModelId;
-  backgroundKnowledge: ModelId;
-}
 
 export interface ModelPreferences {
   modelAssignments: Record<AnalysisTask, ModelId>;

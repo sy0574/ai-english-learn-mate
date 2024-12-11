@@ -7,7 +7,7 @@ export interface WordBankEntry {
   level: 'junior' | 'senior' | 'cet4' | 'cet6' | 'advanced';
   tags: string[];
   examples: string[];
-  variations?: string[];
+  variations: string[];
 }
 
 export async function loadWordBank(): Promise<WordBankEntry[]> {
@@ -23,22 +23,48 @@ export async function loadWordBank(): Promise<WordBankEntry[]> {
 
 function parseCSV(csvText: string): WordBankEntry[] {
   const lines = csvText.split('\n');
-  const headers = lines[0].split(',');
+  if (lines.length < 2) {
+    throw new Error('Word bank CSV must contain header and at least one entry');
+  }
   
-  return lines.slice(1)
+  const headers = lines[0].split(',');
+  console.log('CSV headers:', headers);
+  
+  const entries = lines.slice(1)
     .filter(line => line.trim())
-    .map(line => {
-      const values = line.split(',').map(value => value.trim());
-      return {
-        word: values[0],
-        translation: values[1],
-        partOfSpeech: values[2].split('.').filter(Boolean),
-        level: values[3] as WordBankEntry['level'],
-        tags: values[4].replace(/"/g, '').split(',').map(tag => tag.trim()),
-        examples: values[5].replace(/"/g, '').split('.').filter(Boolean).map(ex => ex.trim()),
-        variations: values[6]?.replace(/"/g, '').split(',').map(v => v.trim())
-      };
-    });
+    .map((line, index) => {
+      try {
+        const values = line.split(',').map(value => value.trim());
+        if (values.length < 4) {
+          console.warn(`Skipping invalid line ${index + 2}: insufficient columns`);
+          return null;
+        }
+        
+        const level = values[3] as WordBankEntry['level'];
+        if (!['junior', 'senior', 'cet4', 'cet6', 'advanced'].includes(level)) {
+          console.warn(`Skipping line ${index + 2}: invalid level "${level}"`);
+          return null;
+        }
+        
+        const entry: WordBankEntry = {
+          word: values[0],
+          translation: values[1],
+          partOfSpeech: values[2].split('.').filter(Boolean),
+          level,
+          tags: values[4]?.replace(/"/g, '').split(',').filter(tag => tag.trim()) || [],
+          examples: values[5]?.replace(/"/g, '').split('.').filter(Boolean).map(ex => ex.trim()) || [],
+          variations: values[6]?.replace(/"/g, '').split(',').filter(v => v.trim()) || []
+        };
+        
+        return entry;
+      } catch (error) {
+        console.error(`Error parsing line ${index + 2}:`, error);
+        return null;
+      }
+    })
+    .filter((entry): entry is WordBankEntry => entry !== null);
+  
+  return entries;
 }
 
 export function useWordBank() {

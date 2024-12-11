@@ -20,10 +20,10 @@ export default function ReadingSection({
   selectedSentence
 }: ReadingSectionProps) {
   return (
-    <Card className="flex flex-col h-full overflow-hidden">
+    <Card className="flex flex-col h-full">
       <ReadingHeader onArticleUpload={onArticleUpload} />
       
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0">
         {currentArticle ? (
           <ReadingContent 
             article={currentArticle} 
@@ -32,9 +32,11 @@ export default function ReadingSection({
             selectedSentence={selectedSentence}
           />
         ) : (
-          <div className="text-center apple-text-secondary py-12">
-            <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>上传文章或从阅读材料库中选择文章开始阅读训练</p>
+          <div className="h-full flex items-center justify-center text-center apple-text-secondary">
+            <div>
+              <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>添加文章或从阅读材料库中选择文章开始阅读训练</p>
+            </div>
           </div>
         )}
       </div>

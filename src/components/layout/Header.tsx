@@ -1,8 +1,11 @@
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import { SubscriptionManager } from '@/lib/api/subscriptionManager';
+import { PRICING_PLANS } from '@/lib/types/subscription';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +19,10 @@ interface HeaderProps {
 }
 
 export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) {
-  const { _theme, setTheme } = useTheme();
+  const { theme: _theme, setTheme } = useTheme();
   const { signOut } = useAuth();
+  const currentTier = SubscriptionManager.getInstance().getCurrentTier();
+  const currentPlan = PRICING_PLANS[currentTier];
 
   const handleSignOut = async () => {
     try {
@@ -37,9 +42,15 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
           <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
             {isSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
-          <h2 className="text-xl font-semibold">My lifelong learning mate 📚✨</h2>
+          <h2 className="text-xl font-semibold">AI智学</h2>
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/member-center">
+            <Button variant="outline" className="gap-2">
+              <Crown className="w-4 h-4" />
+              <span>{currentPlan.name}</span>
+            </Button>
+          </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

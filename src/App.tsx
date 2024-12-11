@@ -7,7 +7,6 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import SettingsPage from '@/components/settings/SettingsPage';
 import MemberCenter from '@/components/subscription/MemberCenter';
 import PricingPage from '@/components/subscription/PricingPage';
-import Navbar from '@/components/layout/Navbar';
 import HomePage from '@/components/home/HomePage';
 
 export default function App() {
@@ -17,7 +16,6 @@ export default function App() {
         <AuthGuard>
           <Layout>
             <div className="min-h-screen bg-background">
-              <Navbar />
               <main>
                 <Routes>
                   <Route path="/" element={<HomePage />} />

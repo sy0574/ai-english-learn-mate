@@ -1,9 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { PlayCircle, PauseCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTTS } from '@/contexts/TTSContext';
+import { TTSEvent } from '@/lib/tts/domain/types';
+import { TTSEventEmitter } from '@/lib/tts/events/TTSEventEmitter';
 
 interface EdgeTTSProps {
   text: string;
@@ -27,48 +30,27 @@ export const EdgeTTS: React.FC<EdgeTTSProps> = ({
   onError,
   autoPlay = false,
 }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [voice, setVoice] = useState(VOICES[0].value);
-  const [rate, setRate] = useState(1);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const {
+    voice,
+    setVoice,
+    rate,
+    setRate,
+    isPlaying,
+    isLoading,
+    playText,
+    stopPlaying
+  } = useTTS();
 
-  const playAudio = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      onStart?.();
+  // 订阅事件
+  useEffect(() => {
+    const eventEmitter = TTSEventEmitter.getInstance();
+    
+    const unsubscribeComplete = eventEmitter.subscribe(TTSEvent.QueueComplete, () => {
+      onEnd?.();
+    });
 
-      const response = await fetch('http://localhost:3001/api/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text, voice, rate }),
-      });
-
-      if (!response.ok) {
-        throw new Error('TTS request failed');
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      
-      if (audio) {
-        audio.pause();
-        URL.revokeObjectURL(audio.src);
-      }
-
-      const newAudio = new Audio(url);
-      newAudio.onended = () => {
-        setIsPlaying(false);
-        onEnd?.();
-      };
-
-      setAudio(newAudio);
-      await newAudio.play();
-      setIsPlaying(true);
-    } catch (error) {
+    const unsubscribeError = eventEmitter.subscribe(TTSEvent.PlaybackError, (error) => {
       console.error('TTS error:', error);
       onError?.(error);
       toast({
@@ -76,39 +58,47 @@ export const EdgeTTS: React.FC<EdgeTTSProps> = ({
         title: "错误",
         description: "播放失败，请重试"
       });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [text, voice, rate, audio, onStart, onEnd, onError]);
+    });
 
-  const togglePlay = useCallback(() => {
-    if (isPlaying && audio) {
-      audio.pause();
-      setIsPlaying(false);
-    } else if (!isPlaying) {
-      playAudio();
-    }
-  }, [isPlaying, audio, playAudio]);
-
-  React.useEffect(() => {
-    if (autoPlay) {
-      playAudio();
-    }
     return () => {
-      if (audio) {
-        audio.pause();
-        URL.revokeObjectURL(audio.src);
-      }
+      unsubscribeComplete();
+      unsubscribeError();
     };
-  }, [autoPlay]);
+  }, [onEnd, onError, toast]);
+
+  // 自动播放
+  useEffect(() => {
+    if (autoPlay && text) {
+      handlePlay();
+    }
+  }, [autoPlay, text]);
+
+  const handlePlay = async () => {
+    try {
+      if (isPlaying) {
+        stopPlaying();
+      } else {
+        onStart?.();
+        await playText(text);
+      }
+    } catch (error) {
+      console.error('Failed to play:', error);
+      onError?.(error);
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: "播放失败，请重试"
+      });
+    }
+  };
 
   return (
     <div className="flex items-center gap-4 p-4 border rounded-lg">
       <Button
         variant="outline"
         size="icon"
-        onClick={togglePlay}
-        disabled={isLoading}
+        onClick={handlePlay}
+        disabled={isLoading || !text}
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -124,7 +114,7 @@ export const EdgeTTS: React.FC<EdgeTTSProps> = ({
           <SelectValue placeholder="选择声音" />
         </SelectTrigger>
         <SelectContent>
-          {VOICES.map(v => (
+          {VOICES.map((v) => (
             <SelectItem key={v.value} value={v.value}>
               {v.label}
             </SelectItem>
