@@ -22,7 +22,7 @@ export interface PricingPlan {
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
   free: {
     maxTemplates: 3,
-    maxDailyRequests: 20,
+    maxDailyRequests: 10,
     availableModels: ['gpt-3.5-turbo'],
     customTemplates: false,
     prioritySupport: false,
@@ -59,7 +59,7 @@ export const PRICING_PLANS: Record<SubscriptionTier, PricingPlan> = {
     description: '体验基础功能',
     price: 0,
     features: [
-      '每日20次AI对话',
+      '每日10次AI对话',
       '3个任务模板',
       '基础AI模型',
       '基础功能使用',
@@ -130,7 +130,7 @@ export const SUBSCRIPTION_FEATURES: SubscriptionFeature[] = [
   {
     id: 'analytics',
     name: '数据分析',
-    description: '详细的学习进度和效果分析',
+    description: '详的学习进度和效果分析',
     includedIn: ['pro', 'enterprise'],
   },
   {

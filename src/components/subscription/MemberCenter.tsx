@@ -10,25 +10,40 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SubscriptionManager } from '@/lib/api/subscriptionManager';
+import { UsageLimitsManager } from '@/lib/api/usageLimitsManager';
 import { PRICING_PLANS } from '@/lib/types/subscription';
 import { QRCodeSVG } from 'qrcode.react';
+import { useAuth } from '@/components/auth/AuthProvider';
+
+type OrderStatus = 'pending' | 'success' | 'failed';
 
 export default function MemberCenter() {
   const [_paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay'>('wechat');
   const [showPayment, setShowPayment] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [_orderStatus, setOrderStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+  const [_orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
+  const [dailyUsage, setDailyUsage] = useState(0);
 
+  const { user } = useAuth();
   const subscriptionManager = SubscriptionManager.getInstance();
+  const usageLimitsManager = UsageLimitsManager.getInstance();
   const currentTier = subscriptionManager.getCurrentTier();
   const limits = subscriptionManager.getLimits();
-  const [dailyRequests, setDailyRequests] = useState(0);
 
   useEffect(() => {
-    // 在实际项目中，这里应该从后端获取用户的使用统计
-    const count = parseInt(localStorage.getItem('daily_request_count') || '0', 10);
-    setDailyRequests(count);
-  }, []);
+    const fetchUsage = async () => {
+      if (user) {
+        try {
+          const usage = await usageLimitsManager.getDailyUsage(user.id);
+          setDailyUsage(usage);
+        } catch (error) {
+          console.error('Error fetching daily usage:', error);
+        }
+      }
+    };
+
+    fetchUsage();
+  }, [user]);
 
   const _handleUpgrade = async (planId: string) => {
     try {
@@ -40,21 +55,30 @@ export default function MemberCenter() {
 
       setQrCodeUrl(mockOrderResponse.qrCode);
       setShowPayment(true);
+      setOrderStatus('pending');
 
       // 模拟订单状态轮询
       const checkOrderStatus = setInterval(async () => {
         // 在实际项目中，这里应该调用后端API检查订单状态
-        const mockStatus = 'pending';
-        if (mockStatus === 'success') {
+        const mockStatus: OrderStatus = 'pending';
+        
+        if (mockStatus !== 'pending') {
           clearInterval(checkOrderStatus);
-          setOrderStatus('success');
-          setShowPayment(false);
-          // 更新订阅状态
-          await subscriptionManager.upgradeTier(planId as any);
+          setOrderStatus(mockStatus);
+          
+          if (mockStatus === 'success') {
+            setShowPayment(false);
+            // 更新订阅状态
+            await subscriptionManager.upgradeTier(planId as any);
+          }
         }
       }, 3000);
+
+      // 清理定时器
+      return () => clearInterval(checkOrderStatus);
     } catch (error) {
       console.error('创建订单失败:', error);
+      setOrderStatus('failed');
     }
   };
 
@@ -79,11 +103,11 @@ export default function MemberCenter() {
           <div className="space-y-4">
             <div>
               <div className="flex justify-between mb-2">
-                <span>今日请求次数</span>
-                <span>{dailyRequests} / {limits.maxDailyRequests}</span>
+                <span>今日句子分析次数</span>
+                <span>{dailyUsage} / {limits.maxDailyRequests}</span>
               </div>
               <Progress
-                value={(dailyRequests / limits.maxDailyRequests) * 100}
+                value={(dailyUsage / limits.maxDailyRequests) * 100}
               />
             </div>
             <div>

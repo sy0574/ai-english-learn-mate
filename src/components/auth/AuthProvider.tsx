@@ -72,6 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
 
       if (event === 'SIGNED_IN') {
+        // 检查是否是首次登录
+        if (session?.user?.user_metadata?.created_at === session?.user?.created_at) {
+          // 如果是新用户首次登录，设置为免费版
+          localStorage.setItem('subscription_tier', 'free');
+        }
         toast.success('登录成功');
       } else if (event === 'SIGNED_OUT') {
         toast.success('已退出登录');
@@ -102,6 +107,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       if (!data.user) throw new Error('登录失败，未获取到用户信息');
 
+      // 检查是否是首次登录
+      if (data.user.user_metadata?.created_at === data.user.created_at) {
+        // 如果是新用户首次登录，设置为免费版
+        localStorage.setItem('subscription_tier', 'free');
+      }
+
     } catch (error) {
       handleAuthError(error);
     }
@@ -123,6 +134,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       if (!data.user) throw new Error('注册失败，请重试');
 
+      // 设置新用户的订阅级别为免费版
+      localStorage.setItem('subscription_tier', 'free');
+      
       toast.success('注册成功！请查收验证邮件');
 
     } catch (error) {
