@@ -6,6 +6,8 @@ import { useTTS } from '@/contexts/TTSContext';
 import type { TTSControllerRef } from '@/components/common/tts/TTSController';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { TTSEventEmitter } from '@/lib/tts/events/TTSEventEmitter';
+import { TTSEvent } from '@/lib/tts/domain/types';
 
 interface SentenceHighlighterProps {
   text: string;
@@ -89,6 +91,59 @@ export default function SentenceHighlighter({
   const { fontSizeScale, playText, stopPlaying, isPlaying } = useTTS();
   const { toast } = useToast();
 
+  // 添加播放进度监听
+  useEffect(() => {
+    if (!enableTTS) return;
+
+    const eventEmitter = TTSEventEmitter.getInstance();
+    let lastWordIndex = -1;
+    let lastUpdateTime = 0;
+    const WORD_DURATION_OFFSET = -0.15; // 提前 150ms 高亮下一个单词
+    
+    const unsubscribeProgress = eventEmitter.subscribe(TTSEvent.PlaybackProgress, (state: any) => {
+      if (playingSentenceIndex !== null && state.currentTime !== undefined && state.duration !== undefined) {
+        const now = performance.now();
+        if (now - lastUpdateTime < 16) { // 限制更新频率为 60fps
+          return;
+        }
+        lastUpdateTime = now;
+
+        // 获取当前句子的单词
+        const currentSentence = sentences[playingSentenceIndex];
+        const words = parseTextContent(currentSentence)
+          .filter(part => part.type === 'word')
+          .map(part => part.content);
+        
+        // 使用补偿后的时间计算进度
+        const adjustedTime = state.currentTime + WORD_DURATION_OFFSET;
+        const progress = adjustedTime / state.duration;
+        const wordIndex = Math.min(
+          Math.floor(progress * words.length),
+          words.length - 1
+        );
+        
+        // 只在单词索引变化时更新
+        if (wordIndex !== lastWordIndex && wordIndex >= 0) {
+          lastWordIndex = wordIndex;
+          const word = words[wordIndex];
+          if (word !== playingWord) {
+            setPlayingWord(word);
+          }
+        }
+      }
+    });
+
+    const unsubscribeComplete = eventEmitter.subscribe(TTSEvent.ItemComplete, () => {
+      setPlayingWord(null);
+      lastWordIndex = -1;
+    });
+
+    return () => {
+      unsubscribeProgress();
+      unsubscribeComplete();
+    };
+  }, [playingSentenceIndex, sentences, enableTTS, playingWord]);
+
   // 重置状态
   const resetState = useCallback(() => {
     stopPlaying();
@@ -132,7 +187,7 @@ export default function SentenceHighlighter({
       setIsLoading(true);
       await ttsRef.current?.play(index);
       setPlayingSentenceIndex(index);
-      setRetryCount(0); // 成功后重置重试计数
+      setRetryCount(0); // 成功重置重试计数
     } catch (error) {
       if (retryCount < maxRetries) {
         setRetryCount(prev => prev + 1);
@@ -238,6 +293,41 @@ export default function SentenceHighlighter({
     return () => window.removeEventListener('online', handleOnline);
   }, [playingSentenceIndex, isPlaying, playWithRetry]);
 
+  // 渲染单词部分的代码
+  const renderWord = useCallback((part: { type: string; content: string }, partIndex: number, isPlaying: boolean) => {
+    if (part.type === 'word') {
+      const isCurrentWord = isPlaying && part.content === playingWord;
+      return (
+        <span
+          key={partIndex}
+          data-word={part.content}
+          className={cn(
+            "cursor-pointer transition-all duration-150", // 减少过渡时间以提高响应速度
+            !isPlaying && "hover:text-primary/70",
+            isCurrentWord && [
+              "text-gradient-modern font-medium",
+              "bg-primary/5 px-1.5 py-0.5 rounded-md",
+              "scale-110 origin-center",
+              "animate-bounce",
+              "border-b-2 border-primary",
+              "shadow-lg shadow-primary/20"
+            ]
+          )}
+          style={{
+            transform: isCurrentWord ? 'scale(1.1)' : 'scale(1)',
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            willChange: 'transform' // 提示浏览器优化动画性能
+          }}
+          onClick={(e) => handleWordClick(e, part.content)}
+          onDoubleClick={(e) => handleWordDoubleClick(e, part.content)}
+        >
+          {part.content}
+        </span>
+      );
+    }
+    return <span key={partIndex}>{part.content}</span>;
+  }, [playingWord, handleWordClick, handleWordDoubleClick]);
+
   return (
     <div className={`space-y-2 ${className}`}>
       {sentences.map((sentence, index) => {
@@ -286,28 +376,7 @@ export default function SentenceHighlighter({
               "relative block z-10",
               isPlaying && "text-gradient-modern"
             )}>
-              {parts.map((part, partIndex) => {
-                if (part.type === 'word') {
-                  return (
-                    <span
-                      key={partIndex}
-                      className={cn(
-                        "cursor-pointer transition-all duration-200",
-                        !isPlaying && "hover:text-primary/70",
-                        playingWord === part.content && [
-                          "text-gradient-modern font-medium",
-                          "bg-primary/5 px-1.5 py-0.5 rounded-md"
-                        ]
-                      )}
-                      onClick={(e) => handleWordClick(e, part.content)}
-                      onDoubleClick={(e) => handleWordDoubleClick(e, part.content)}
-                    >
-                      {part.content}
-                    </span>
-                  );
-                }
-                return <span key={partIndex}>{part.content}</span>;
-              })}
+              {parts.map((part, partIndex) => renderWord(part, partIndex, isPlaying))}
             </span>
 
             {enableTTS && (hoveredSentenceIndex === index || isPlaying) && (

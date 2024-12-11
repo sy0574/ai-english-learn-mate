@@ -194,6 +194,7 @@ export class PlaybackController implements IPlaybackController {
     this.audioElement = new Audio();
     this.audioElement.playbackRate = this.store.getState().config.rate;
     this.audioElement.volume = this.store.getState().config.volume;
+    this.setupAudioEventListeners();
   }
 
   private setupAudioEventListeners(): void {
@@ -229,7 +230,8 @@ export class PlaybackController implements IPlaybackController {
       this.eventEmitter.emit(TTSEvent.PlaybackProgress, {
         progress,
         currentTime,
-        duration
+        duration,
+        text: this.queueManager.getCurrentItem()?.text
       });
     }
   };

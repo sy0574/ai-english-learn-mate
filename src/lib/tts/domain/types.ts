@@ -98,3 +98,10 @@ export class TTSError extends Error {
     this.name = 'TTSError';
   }
 }
+
+export interface PlaybackProgressPayload {
+  progress: number;
+  currentTime: number;
+  duration: number;
+  text?: string;
+}
