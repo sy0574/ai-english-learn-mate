@@ -5,7 +5,6 @@ export interface TTSConfig {
   pitch?: number;
   volume?: number;
   language?: string;
-  loopMode?: 'none' | 'sentence' | 'selection';  // 循环播放模式
   loopCount?: number;  // 循环次数，undefined或-1表示无限循环
 }
 

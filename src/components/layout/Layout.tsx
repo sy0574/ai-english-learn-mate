@@ -4,6 +4,7 @@ import Header from './Header';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { TTSProvider } from '@/contexts/TTSContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,19 +17,21 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-      <div className="min-h-screen bg-background">
-        <Sidebar isOpen={isSidebarOpen} />
-        <div
-          className={cn(
-            "min-h-screen flex flex-col transition-all duration-300",
-            isSidebarOpen ? "pl-64" : "pl-16"
-          )}
-        >
-          <Header isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
-          <main className="flex-1 overflow-auto">{children}</main>
+      <TTSProvider>
+        <div className="min-h-screen bg-background">
+          <Sidebar isOpen={isSidebarOpen} />
+          <div
+            className={cn(
+              "min-h-screen flex flex-col transition-all duration-300",
+              isSidebarOpen ? "pl-64" : "pl-16"
+            )}
+          >
+            <Header isSidebarOpen={isSidebarOpen} onToggleSidebar={toggleSidebar} />
+            <main className="flex-1 overflow-auto">{children}</main>
+          </div>
         </div>
-      </div>
-      <Toaster position="top-center" />
+        <Toaster position="top-center" />
+      </TTSProvider>
     </ThemeProvider>
   );
 }

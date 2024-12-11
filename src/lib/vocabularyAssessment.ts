@@ -11,10 +11,11 @@ export const VOCABULARY_LEVELS = {
 
 // 词汇掌握程度
 export const MASTERY_LEVELS = {
-  FAMILIAR: { score: 3, description: '熟练掌握' },
-  RECOGNIZED: { score: 2, description: '基本认识' },
-  SEEN: { score: 1, description: '见过但不确定' },
-  UNKNOWN: { score: 0, description: '完全陌生' }
+  FAMILIAR: { score: 4, description: '熟练掌握', criteria: '能准确理解和运用，可以解释和造句' },
+  CONFIDENT: { score: 3, description: '较好掌握', criteria: '认识词义，能在大多数场合正确使用' },
+  RECOGNIZED: { score: 2, description: '基本认识', criteria: '知道基本含义，但可能在使用时不够准确' },
+  SEEN: { score: 1, description: '见过但不确定', criteria: '见过这个词，但不确定具体含义' },
+  UNKNOWN: { score: 0, description: '完全陌生', criteria: '从未见过或完全不认识' }
 } as const;
 
 interface VocabularyProfile {
@@ -31,6 +32,7 @@ interface VocabularyProfile {
     date: string;
     newWords: number;
     reviewedWords: number;
+    masteryImprovement: number;
   }>;
 }
 
@@ -40,19 +42,59 @@ interface WordAssessment {
   lastSeen: Date;
   contexts: string[];
   mistakes: number;
+  assessmentHistory: Array<{
+    date: Date;
+    mastery: keyof typeof MASTERY_LEVELS;
+    context?: string;
+  }>;
+  confusedWith: string[];
 }
 
 export class VocabularyAssessor {
   private userVocabulary: Map<string, WordAssessment>;
   private wordBank: WordBankEntry[];
+  private lastAssessmentDate?: Date;
+  private assessmentResults: Array<{
+    date: Date;
+    score: number;
+    level: string;
+    wordsAssessed: number;
+  }> = [];
 
   constructor(wordBank: WordBankEntry[]) {
     this.userVocabulary = new Map();
     this.wordBank = wordBank;
   }
 
+  // 获取初始掌握程度
+  private getInitialMastery(response: {
+    isCorrect: boolean;
+    confidence: number;
+    responseTime: number;
+  }): keyof typeof MASTERY_LEVELS {
+    if (response.isCorrect && response.confidence > 0.8 && response.responseTime < 2000) {
+      return 'FAMILIAR';
+    }
+    if (response.isCorrect && response.confidence > 0.5) {
+      return 'CONFIDENT';
+    }
+    if (response.isCorrect) {
+      return 'RECOGNIZED';
+    }
+    return 'UNKNOWN';
+  }
+
   // 评估单个单词的掌握程度
-  assessWord(word: string, context: string, isCorrect: boolean): void {
+  assessWord(
+    word: string, 
+    context: string, 
+    response: {
+      isCorrect: boolean;
+      confidence: number;
+      responseTime: number;
+      confusedWith?: string;
+    }
+  ): void {
     const existing = this.userVocabulary.get(word);
     const now = new Date();
 
@@ -60,39 +102,68 @@ export class VocabularyAssessor {
       // 更新已有单词的评估
       const newMastery = this.calculateNewMastery(
         existing.mastery,
-        isCorrect,
+        response,
         existing.mistakes
       );
 
-      this.userVocabulary.set(word, {
+      const updatedAssessment: WordAssessment = {
         ...existing,
         mastery: newMastery,
         lastSeen: now,
         contexts: [...existing.contexts, context].slice(-5),
-        mistakes: isCorrect ? existing.mistakes : existing.mistakes + 1
-      });
+        mistakes: response.isCorrect ? existing.mistakes : existing.mistakes + 1,
+        assessmentHistory: [
+          ...existing.assessmentHistory,
+          { date: now, mastery: newMastery, context }
+        ],
+        confusedWith: response.confusedWith 
+          ? [...existing.confusedWith, response.confusedWith] 
+          : existing.confusedWith
+      };
+
+      this.userVocabulary.set(word, updatedAssessment);
     } else {
       // 添加新单词
-      this.userVocabulary.set(word, {
+      const newAssessment: WordAssessment = {
         word,
-        mastery: isCorrect ? 'RECOGNIZED' : 'SEEN',
+        mastery: this.getInitialMastery(response),
         lastSeen: now,
         contexts: [context],
-        mistakes: isCorrect ? 0 : 1
-      });
+        mistakes: response.isCorrect ? 0 : 1,
+        assessmentHistory: [{
+          date: now,
+          mastery: this.getInitialMastery(response),
+          context
+        }],
+        confusedWith: response.confusedWith ? [response.confusedWith] : []
+      };
+
+      this.userVocabulary.set(word, newAssessment);
     }
   }
 
   // 计算新的掌握程度
   private calculateNewMastery(
     currentMastery: keyof typeof MASTERY_LEVELS,
-    isCorrect: boolean,
+    response: {
+      isCorrect: boolean;
+      confidence: number;
+      responseTime: number;
+    },
     mistakes: number
   ): keyof typeof MASTERY_LEVELS {
-    if (!isCorrect && mistakes >= 3) return 'UNKNOWN';
-    if (isCorrect && currentMastery === 'RECOGNIZED' && mistakes === 0) return 'FAMILIAR';
-    if (!isCorrect && currentMastery === 'FAMILIAR') return 'RECOGNIZED';
-    if (isCorrect && currentMastery === 'SEEN') return 'RECOGNIZED';
+    const masteryLevels: Array<keyof typeof MASTERY_LEVELS> = [
+      'UNKNOWN', 'SEEN', 'RECOGNIZED', 'CONFIDENT', 'FAMILIAR'
+    ];
+    const currentIndex = masteryLevels.indexOf(currentMastery);
+
+    if (!response.isCorrect && mistakes >= 3) return 'UNKNOWN';
+    if (response.isCorrect && response.confidence > 0.9 && response.responseTime < 1500) {
+      return masteryLevels[Math.min(currentIndex + 1, masteryLevels.length - 1)];
+    }
+    if (!response.isCorrect || response.confidence < 0.3) {
+      return masteryLevels[Math.max(currentIndex - 1, 0)];
+    }
     return currentMastery;
   }
 
@@ -181,7 +252,7 @@ export class VocabularyAssessor {
   }
 
   // 生成近期进度
-  private generateRecentProgress(): Array<{date: string; newWords: number; reviewedWords: number}> {
+  private generateRecentProgress(): Array<{date: string; newWords: number; reviewedWords: number; masteryImprovement: number}> {
     const last7Days = Array.from({length: 7}, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
@@ -191,7 +262,8 @@ export class VocabularyAssessor {
     return last7Days.map(date => ({
       date,
       newWords: Math.floor(Math.random() * 10), // 示例数据，实际应从用户历史记录中获取
-      reviewedWords: Math.floor(Math.random() * 20)
+      reviewedWords: Math.floor(Math.random() * 20),
+      masteryImprovement: Math.floor(Math.random() * 5) // 掌握度提升百分比
     }));
   }
 

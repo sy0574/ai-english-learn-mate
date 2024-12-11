@@ -1,24 +1,25 @@
 import { TTSService, TTSOptions, TTSPlaybackState, TTSVoiceType, TTSError } from '../types/tts';
 import { DEFAULT_TTS_CONFIG, TTS_VOICES, TTS_ERRORS } from '../config/ttsConfig';
 import edge from 'edge-tts';
+import { BaseTTSService } from './BaseTTSService';
 
-export class EdgeTTSService implements TTSService {
+export class EdgeTTSService extends BaseTTSService {
   private currentAudio: HTMLAudioElement | null = null;
   private state: TTSPlaybackState = {
     isPlaying: false,
     currentText: '',
     currentVoice: DEFAULT_TTS_CONFIG.voice,
     progress: 0,
-    loopMode: 'none',
-    loopCount: 1,
-    currentLoopCount: 0
+    rate: 1,
+    volume: 1
   };
 
+  private static instance: EdgeTTSService | null = null;
+
   private constructor() {
+    super();
     // 私有构造函数，使用getInstance创建实例
   }
-
-  private static instance: EdgeTTSService | null = null;
 
   public static getInstance(): EdgeTTSService {
     if (!EdgeTTSService.instance) {
@@ -47,14 +48,13 @@ export class EdgeTTSService implements TTSService {
       this.stop();
       
       const voice = options.voice || this.state.currentVoice;
-      const loopMode = options.loopMode || 'none';
-      const loopCount = options.loopCount || 1;
+      const rate = options.rate || this.state.rate;
+      const volume = options.volume || this.state.volume;
       
       this.state.currentText = text;
       this.state.currentVoice = voice;
-      this.state.loopMode = loopMode;
-      this.state.loopCount = loopCount;
-      this.state.currentLoopCount = 0;
+      this.state.rate = rate;
+      this.state.volume = volume;
       
       const communicator = new edge.Communicator(text, voice);
       const audioData = await communicator.stream();
@@ -77,19 +77,6 @@ export class EdgeTTSService implements TTSService {
         }
       };
       
-      // 添加循环播放事件监听
-      this.currentAudio.addEventListener('ended', () => {
-        this.state.currentLoopCount++;
-        if (this.state.loopMode !== 'none' && 
-            (this.state.loopCount === -1 || this.state.currentLoopCount < this.state.loopCount)) {
-          this.currentAudio?.play();
-        } else {
-          this.state.isPlaying = false;
-          this.state.currentLoopCount = 0;
-          URL.revokeObjectURL(url);
-        }
-      });
-
       this.currentAudio.onerror = (error) => {
         this.state.isPlaying = false;
         URL.revokeObjectURL(url);
@@ -127,7 +114,6 @@ export class EdgeTTSService implements TTSService {
       this.currentAudio.currentTime = 0;
       this.state.isPlaying = false;
       this.state.progress = 0;
-      this.state.currentLoopCount = 0;
     }
   }
 

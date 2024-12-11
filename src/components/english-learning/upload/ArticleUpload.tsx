@@ -72,32 +72,32 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <Button onClick={() => setOpen(true)} className="gap-2">
         <Upload className="w-4 h-4" />
-        上传文章
+        开启新篇
       </Button>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>上传英文文章</DialogTitle>
+          <DialogTitle>您正在读|正在写的内容:</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="title">文章标题</Label>
+            <Label htmlFor="title">标题</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="输入文章标题"
+              placeholder="输入标题"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="content">文章内容</Label>
+            <Label htmlFor="content">内容</Label>
             <Textarea
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="min-h-[200px]"
-              placeholder="粘贴文章内容"
+              placeholder="粘贴内容"
               required
             />
           </div>
@@ -160,7 +160,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
             </Button>
             <Button type="submit">
               <FileText className="w-4 h-4 mr-2" />
-              上传
+              添加
             </Button>
           </div>
         </form>

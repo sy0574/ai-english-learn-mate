@@ -5,10 +5,34 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 144 24% 12%;
+    --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
-    --card-foreground: 144 24% 12%;
+    --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 142.1 76.2% 36.3%;
+    --radius: 0.75rem;
+  }
+ 
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 0 0% 95%;
+    --card: 24 9.8% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
     --popover-foreground: 144 24% 12%;
     --primary: 142 43% 45%;
     --primary-foreground: 0 0% 100%;
@@ -165,5 +189,87 @@
 
   .sentence-component-animate {
     animation: float 2s ease-in-out infinite;
+  }
+
+  /* 现代化的句子高亮动画 */
+  @keyframes sentence-highlight {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .sentence-highlight-gradient {
+    background: linear-gradient(
+      270deg,
+      hsl(var(--primary) / 0.05) 0%,
+      hsl(var(--primary) / 0.1) 50%,
+      hsl(var(--primary) / 0.05) 100%
+    );
+    background-size: 200% 100%;
+    animation: sentence-highlight 3s ease infinite;
+  }
+
+  /* 苹果风格的玻璃态效果 */
+  .apple-glass {
+    @apply backdrop-blur-md bg-white/70 dark:bg-black/70;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* 现代化的悬浮效果 */
+  @keyframes gentle-float {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-4px) scale(1.01);
+    }
+  }
+
+  .hover-float-modern {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-float-modern:hover {
+    animation: gentle-float 2s ease-in-out infinite;
+  }
+
+  /* 优雅的文字渐变效果 */
+  .text-gradient-modern {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--primary) / 0.8) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* 平滑的阴影过渡 */
+  .shadow-smooth {
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05),
+                0 2px 6px -1px rgba(0, 0, 0, 0.02);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .shadow-smooth:hover {
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08),
+                0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .shadow-smooth {
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.2),
+                0 2px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .shadow-smooth:hover {
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.3),
+                0 4px 12px -2px rgba(0, 0, 0, 0.2);
   }
 }

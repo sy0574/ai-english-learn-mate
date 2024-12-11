@@ -6,6 +6,7 @@ export interface Article {
   tags: string[];
   createdAt: string;
   readingTime: number;
+  imageUrl?: string;
 }
 
 export interface ArticleAnalysis {

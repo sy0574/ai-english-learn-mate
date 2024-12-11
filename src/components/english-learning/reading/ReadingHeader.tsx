@@ -13,7 +13,7 @@ export default function ReadingHeader({ onArticleUpload }: ReadingHeaderProps) {
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-goblin-500" />
           <h3 className="text-xl font-semibold apple-text-primary">
-            精进阅读
+            多感阅读
           </h3>
         </div>
         <ReadingToolbar onArticleUpload={onArticleUpload} />

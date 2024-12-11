@@ -27,7 +27,7 @@ export default function AIAnalysis({
 
   const performAnalysis = async () => {
     if (!content) {
-      toast.error('请先选择或上传文章');
+      toast.error('请先选择或添加文章');
       return;
     }
     

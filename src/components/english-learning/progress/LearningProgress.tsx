@@ -11,11 +11,20 @@ import {
 import VocabularyAssessment from '../vocabulary/VocabularyAssessment';
 import VocabularyProfile from '../vocabulary/VocabularyProfile';
 
+interface AssessmentResult {
+  word: string;
+  mastery: string;
+  level: string;
+  responseTime: number;
+}
+
 export default function LearningProgress() {
   const [showAssessment, setShowAssessment] = useState(false);
   const [hasCompletedAssessment, setHasCompletedAssessment] = useState(false);
+  const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
 
-  const handleAssessmentComplete = () => {
+  const handleAssessmentComplete = (results: AssessmentResult[]) => {
+    setAssessmentResults(results);
     setHasCompletedAssessment(true);
     setShowAssessment(false);
   };
@@ -35,13 +44,13 @@ export default function LearningProgress() {
             <DialogHeader>
               <DialogTitle>词汇量评估</DialogTitle>
             </DialogHeader>
-            <VocabularyAssessment onComplete={handleAssessmentComplete} />
+            <VocabularyAssessment onComplete={(results) => handleAssessmentComplete(results)} />
           </DialogContent>
         </Dialog>
       </div>
 
       {hasCompletedAssessment ? (
-        <VocabularyProfile />
+        <VocabularyProfile assessmentResults={assessmentResults} />
       ) : (
         <div className="text-center py-12 space-y-4">
           <Brain className="w-12 h-12 mx-auto text-muted-foreground" />

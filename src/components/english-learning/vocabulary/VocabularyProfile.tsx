@@ -1,187 +1,131 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar
+  PieChart,
+  Pie
 } from 'recharts';
-import { Brain, Target, TrendingUp, Book } from 'lucide-react';
-import { VocabularyAssessor, VOCABULARY_LEVELS } from '@/lib/vocabularyAssessment';
-import { useWordBank } from '@/lib/wordBank';
 
-const LEVEL_COLORS = {
-  JUNIOR: '#4CAF50',
-  SENIOR: '#2196F3',
-  CET4: '#9C27B0',
-  CET6: '#FF9800',
-  ADVANCED: '#F44336'
-};
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
-export default function VocabularyProfile() {
-  const { wordBank } = useWordBank();
-  const [assessor] = useState(() => new VocabularyAssessor(wordBank));
-  const [_profile, setProfile] = useState(assessor.generateProfile());
+interface VocabularyProfileProps {
+  assessmentResults: {
+    word: string;
+    mastery: string;
+    level: string;
+    responseTime: number;
+  }[];
+}
 
-  // 计算总体掌握进度
-  const totalProgress = Math.round(
-    (_profile.activeVocabulary / VOCABULARY_LEVELS.CET6.maxWords) * 100
-  );
+export default function VocabularyProfile({ assessmentResults }: VocabularyProfileProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  // 计算各级别达成率
-  const levelProgress = Object.entries(_profile.levelDistribution).map(([level, count]) => {
-    const levelConfig = VOCABULARY_LEVELS[level as keyof typeof VOCABULARY_LEVELS];
-    const progress = Math.round((count / (levelConfig.maxWords - levelConfig.minWords)) * 100);
-    return {
-      level: levelConfig.name,
+  const levelDistribution = useMemo(() => {
+    const distribution = assessmentResults.reduce((acc, result) => {
+      acc[result.level] = (acc[result.level] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(distribution).map(([level, count], index) => ({
+      level: level === 'junior' ? '初中' :
+             level === 'senior' ? '高中' :
+             level === 'cet4' ? '四级' :
+             level === 'cet6' ? '六级' : '高级',
       count,
-      progress,
-      color: LEVEL_COLORS[level as keyof typeof LEVEL_COLORS]
-    };
-  });
+      color: COLORS[index % COLORS.length]
+    }));
+  }, [assessmentResults]);
 
-  // 主题强度数据处理
-  const topicData = _profile.topicStrengths.map(topic => ({
-    name: topic.topic,
-    score: Math.round((topic.score / topic.total) * 100)
-  }));
+  const masteryDistribution = useMemo(() => {
+    const distribution = assessmentResults.reduce((acc, result) => {
+      acc[result.mastery] = (acc[result.mastery] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(distribution).map(([mastery, count], index) => ({
+      name: mastery === 'FAMILIAR' ? '熟练掌握' :
+            mastery === 'CONFIDENT' ? '较好掌握' :
+            mastery === 'RECOGNIZED' ? '基本认识' :
+            mastery === 'SEEN' ? '见过但不确定' : '完全陌生',
+      value: count,
+      color: COLORS[index % COLORS.length]
+    }));
+  }, [assessmentResults]);
 
   return (
-    <div className="space-y-6">
-      {/* 总体进度卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Book className="w-4 h-4 text-primary" />
-            <h3 className="font-medium">词汇量</h3>
-          </div>
-          <div className="text-2xl font-bold mb-2">{_profile.activeVocabulary}</div>
-          <Progress value={totalProgress} className="h-2" />
-          <p className="text-sm text-muted-foreground mt-2">
-            活跃词汇量 / 目标词汇量
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Brain className="w-4 h-4 text-primary" />
-            <h3 className="font-medium">掌握程度</h3>
-          </div>
-          <div className="text-2xl font-bold mb-2">
-            {Math.round((_profile.activeVocabulary / _profile.totalWords) * 100)}%
-          </div>
-          <Progress 
-            value={(_profile.activeVocabulary / _profile.totalWords) * 100} 
-            className="h-2" 
-          />
-          <p className="text-sm text-muted-foreground mt-2">
-            活跃词汇 / 总词汇量
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-primary" />
-            <h3 className="font-medium">学习目标</h3>
-          </div>
-          <div className="text-2xl font-bold mb-2">
-            {VOCABULARY_LEVELS.CET6.maxWords - _profile.activeVocabulary}
-          </div>
-          <Progress 
-            value={totalProgress} 
-            className="h-2" 
-          />
-          <p className="text-sm text-muted-foreground mt-2">
-            距离六级词汇量
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <h3 className="font-medium">近期进度</h3>
-          </div>
-          <div className="text-2xl font-bold mb-2">
-            {_profile.recentProgress[_profile.recentProgress.length - 1].newWords}
-          </div>
-          <Progress 
-            value={_profile.recentProgress[_profile.recentProgress.length - 1].newWords * 10} 
-            className="h-2" 
-          />
-          <p className="text-sm text-muted-foreground mt-2">
-            今日新增词汇量
-          </p>
-        </Card>
-      </div>
-
-      {/* 详细分析图表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-4">
-          <h3 className="font-medium mb-4">词汇量分布</h3>
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">词汇水平分布</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={levelProgress}>
+              <BarChart data={levelDistribution}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="level" />
                 <YAxis />
                 <Tooltip />
                 <Bar dataKey="count">
-                  {levelProgress.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {levelDistribution.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.color}
+                      style={{ transition: 'fill-opacity 200ms' }}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onMouseLeave={() => setActiveIndex(null)}
+                      fillOpacity={activeIndex === null || activeIndex === index ? 1 : 0.6}
+                    />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </CardContent>
+      </Card>
 
-        <Card className="p-4">
-          <h3 className="font-medium mb-4">学习进度</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">掌握程度分布</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={_profile.recentProgress}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
+              <PieChart>
+                <Pie
+                  data={masteryDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {masteryDistribution.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.color}
+                      style={{ transition: 'fill-opacity 200ms' }}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onMouseLeave={() => setActiveIndex(null)}
+                      fillOpacity={activeIndex === null || activeIndex === index ? 1 : 0.6}
+                    />
+                  ))}
+                </Pie>
                 <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="newWords" 
-                  stroke="#4CAF50" 
-                  name="新词"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="reviewedWords" 
-                  stroke="#2196F3" 
-                  name="复习"
-                />
-              </LineChart>
+              </PieChart>
             </ResponsiveContainer>
           </div>
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="font-medium mb-4">主题掌握度</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topicData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 100]} />
-                <YAxis dataKey="name" type="category" width={100} />
-                <Tooltip />
-                <Bar dataKey="score" fill="#4CAF50" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

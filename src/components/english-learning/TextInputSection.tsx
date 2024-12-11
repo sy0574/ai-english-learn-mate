@@ -10,12 +10,12 @@ export default function TextInputSection() {
   return (
     <Card className="apple-card">
       <CardContent className="p-6">
-        <h3 className="text-xl font-semibold mb-4 text-[#1D1D1F]">输入英文文本</h3>
+        <h3 className="text-xl font-semibold mb-4 text-[#1D1D1F]">输入文本</h3>
         <Textarea 
           value={text}
           onChange={(e) => setText(e.target.value)}
           className="apple-input min-h-[200px] mb-6 text-[15px]"
-          placeholder="在此输入或粘贴您的英文文本..."
+          placeholder="在此输入或粘贴您的文本..."
         />
         <div className="flex flex-wrap gap-3">
           <Button className="apple-button-primary">

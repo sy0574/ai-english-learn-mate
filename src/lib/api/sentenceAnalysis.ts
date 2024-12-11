@@ -21,7 +21,7 @@ export async function analyzeSentenceStructure(sentence: string): Promise<Senten
 
   while (retries < MAX_RETRIES) {
     try {
-      const prompt = `Analyze the following English sentence and provide a detailed structural analysis in JSON format:
+      const prompt = `Please analyze this English sentence and return ONLY a JSON object with no additional text or explanation:
 
 "${sentence}"
 
@@ -29,42 +29,52 @@ Required JSON format:
 {
   "components": [
     {
-      "text": "specific word or phrase from the sentence",
-      "type": "part of speech or grammatical role",
+      "text": "word or phrase",
+      "type": "grammatical role",
       "explanation": "explanation in Chinese"
     }
   ],
   "structure": {
     "level": "sentence complexity level",
-    "patterns": ["grammatical pattern used"],
-    "explanation": "detailed structure explanation in Chinese"
+    "patterns": ["grammatical pattern"],
+    "explanation": "structure explanation in Chinese"
   },
   "rules": [
     {
       "type": "grammar rule type",
       "description": "rule explanation in Chinese",
-      "examples": ["similar example"]
+      "examples": ["example sentence"]
     }
   ]
-}`;
+}
+
+Remember: Return ONLY the JSON object, no other text.`;
 
       console.log('Sending analysis request for sentence:', sentence);
       const result = await modelManager.makeRequest('sentenceStructure', prompt);
+      console.log('Raw API response:', result);
       
       try {
         // 清理和预处理响应
-        let cleanedResult = result.trim()
-          .replace(/```json\s*|\s*```/g, '')  // 移除所有代码块标记
-          .replace(/^[\s\n]*{/, '{')  // 确保JSON从{开始
-          .replace(/}[\s\n]*$/, '}')  // 确保JSON以}结束
-          .trim();
+        const cleanedResult = result.trim();
+
+        // 尝试提取JSON部分
+        const jsonMatch = cleanedResult.match(/```json\s*([\s\S]*?)\s*```/) || 
+                         cleanedResult.match(/\{[\s\S]*\}/);
         
-        console.log('Preprocessed response:', cleanedResult);
+        if (!jsonMatch) {
+          console.error('No JSON found in response');
+          throw new APIError('未找到有效的JSON响应');
+        }
+
+        const jsonStr = jsonMatch[1] || jsonMatch[0];
+        console.log('Extracted JSON:', jsonStr);
 
         // 尝试解析JSON
         let parsedResult: SentenceAnalysisResult;
         try {
-          parsedResult = JSON.parse(cleanedResult);
+          parsedResult = JSON.parse(jsonStr);
+          console.log('Parsed result:', parsedResult);
         } catch (e) {
           console.error('JSON parse error:', e);
           throw new APIError('JSON解析失败，响应格式不正确');
@@ -72,18 +82,22 @@ Required JSON format:
 
         // 验证结果结构
         if (!parsedResult || typeof parsedResult !== 'object') {
+          console.error('Invalid result structure:', parsedResult);
           throw new APIError('解析结果不是有效的对象');
         }
 
         if (!Array.isArray(parsedResult.components) || parsedResult.components.length === 0) {
+          console.error('Missing components:', parsedResult);
           throw new APIError('缺少句子组件分析');
         }
 
         if (!parsedResult.structure || typeof parsedResult.structure !== 'object') {
+          console.error('Missing structure:', parsedResult);
           throw new APIError('缺少句子结构分析');
         }
 
         if (!Array.isArray(parsedResult.rules) || parsedResult.rules.length === 0) {
+          console.error('Missing rules:', parsedResult);
           throw new APIError('缺少语法规则分析');
         }
 
@@ -95,7 +109,11 @@ Required JSON format:
         throw error;
       }
     } catch (error) {
-      lastError = error;
+      if (error instanceof Error) {
+        lastError = error;
+      } else {
+        lastError = new Error('Unknown error occurred');
+      }
       retries++;
       
       if (error instanceof APIError && error.code === 'auth') {
@@ -163,44 +181,17 @@ export function getAllSavedAnalyses(): Array<{
   try {
     const savedAnalyses = JSON.parse(
       localStorage.getItem(STORAGE_KEY) || '{}'
-    );
+    ) as Record<string, {
+      sentence: string;
+      analysis: SentenceAnalysisResult;
+      timestamp: string;
+    }>;
     
     return Object.values(savedAnalyses)
-      .sort((a: any, b: any) => 
+      .sort((a, b) => 
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
   } catch {
     return [];
-  }
-}
-
-function preprocessResponse(response: string): string {
-  if (!response || typeof response !== 'string') {
-    throw new APIError('AI响应为空或格式错误');
-  }
-
-  try {
-    // 首先尝试直接解析，可能已经是干净的JSON
-    JSON.parse(response);
-    return response;
-  } catch {
-    // 如果直接解析失败，尝试清理和提取JSON
-    const jsonStart = response.indexOf('{');
-    const jsonEnd = response.lastIndexOf('}');
-    
-    if (jsonStart === -1 || jsonEnd === -1) {
-      throw new APIError('响应中未找到有效的JSON结构');
-    }
-    
-    // 提取JSON部分
-    const jsonStr = response.slice(jsonStart, jsonEnd + 1);
-    
-    try {
-      // 验证提取的内容是否为有效JSON
-      JSON.parse(jsonStr);
-      return jsonStr;
-    } catch (error) {
-      throw new APIError('提取的JSON格式无效');
-    }
   }
 }

@@ -13,7 +13,7 @@ function uuidv4() {
   });
 }
 
-const STORAGE_KEY = 'english-learning-articles';
+const _STORAGE_KEY = 'english-learning-articles';
 const DEFAULT_ARTICLES: Article[] = [
   {
     id: uuidv4(),
@@ -207,11 +207,53 @@ export function useArticles() {
     }
   };
 
+  const updateArticle = async (updatedArticle: Article) => {
+    try {
+      if (!user?.id) {
+        throw new Error('用户未登录');
+      }
+
+      // Optimistically update UI
+      setArticles(prev => prev.map(article => 
+        article.id === updatedArticle.id ? updatedArticle : article
+      ));
+
+      const { error } = await supabase
+        .from('articles')
+        .update({
+          title: updatedArticle.title,
+          content: updatedArticle.content,
+          difficulty: updatedArticle.difficulty,
+          tags: updatedArticle.tags,
+          reading_time: updatedArticle.readingTime,
+          image_url: updatedArticle.imageUrl || null
+        })
+        .eq('id', updatedArticle.id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        // Revert on error
+        console.error('Error updating article:', error);
+        const data = await loadArticles(user.id);
+        setArticles(data);
+        throw error;
+      }
+
+      toast.success('文章更新成功');
+      return true;
+    } catch (error) {
+      console.error('Error updating article:', error);
+      toast.error('更新文章失败，请重试');
+      return false;
+    }
+  };
+
   return {
     articles,
     loading,
     error,
     saveArticle,
-    deleteArticle
+    deleteArticle,
+    updateArticle
   };
 }
