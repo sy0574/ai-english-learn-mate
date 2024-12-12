@@ -97,48 +97,51 @@ export default function SentenceHighlighter({
 
     const eventEmitter = TTSEventEmitter.getInstance();
     let lastWordIndex = -1;
-    let lastUpdateTime = 0;
-    const WORD_DURATION_OFFSET = -0.15; // 提前 150ms 高亮下一个单词
+    let rafId: number;
     
     const unsubscribeProgress = eventEmitter.subscribe(TTSEvent.PlaybackProgress, (state: any) => {
       if (playingSentenceIndex !== null && state.currentTime !== undefined && state.duration !== undefined) {
-        const now = performance.now();
-        if (now - lastUpdateTime < 16) { // 限制更新频率为 60fps
-          return;
-        }
-        lastUpdateTime = now;
+        // 使用新的播放进度信息
+        const { currentWordIndex, estimatedWordsPerSecond } = state;
+        
+        if (currentWordIndex !== undefined && currentWordIndex !== lastWordIndex) {
+          const currentSentence = sentences[playingSentenceIndex];
+          const words = parseTextContent(currentSentence)
+            .filter(part => part.type === 'word')
+            .map(part => part.content);
 
-        // 获取当前句子的单词
-        const currentSentence = sentences[playingSentenceIndex];
-        const words = parseTextContent(currentSentence)
-          .filter(part => part.type === 'word')
-          .map(part => part.content);
-        
-        // 使用补偿后的时间计算进度
-        const adjustedTime = state.currentTime + WORD_DURATION_OFFSET;
-        const progress = adjustedTime / state.duration;
-        const wordIndex = Math.min(
-          Math.floor(progress * words.length),
-          words.length - 1
-        );
-        
-        // 只在单词索引变化时更新
-        if (wordIndex !== lastWordIndex && wordIndex >= 0) {
-          lastWordIndex = wordIndex;
-          const word = words[wordIndex];
-          if (word !== playingWord) {
-            setPlayingWord(word);
+          // 计算预计的单词播放时间
+          const wordPlayTime = 1 / estimatedWordsPerSecond;
+          
+          // 提前一小段时间触发动画
+          const preloadTime = Math.min(wordPlayTime * 0.2, 0.15); // 提前20%的单词时间或最多150ms
+          
+          if (currentWordIndex >= 0 && currentWordIndex < words.length) {
+            lastWordIndex = currentWordIndex;
+            const word = words[currentWordIndex];
+            
+            if (word !== playingWord) {
+              // 取消之前的动画帧
+              cancelAnimationFrame(rafId);
+              
+              // 使用 requestAnimationFrame 确保动画流畅
+              rafId = requestAnimationFrame(() => {
+                setPlayingWord(word);
+              });
+            }
           }
         }
       }
     });
 
     const unsubscribeComplete = eventEmitter.subscribe(TTSEvent.ItemComplete, () => {
+      cancelAnimationFrame(rafId);
       setPlayingWord(null);
       lastWordIndex = -1;
     });
 
     return () => {
+      cancelAnimationFrame(rafId);
       unsubscribeProgress();
       unsubscribeComplete();
     };
@@ -277,7 +280,7 @@ export default function SentenceHighlighter({
       return;
     }
 
-    // 开始播放新句子
+    // 始播放新句子
     playWithRetry(index);
   };
 
@@ -338,7 +341,11 @@ export default function SentenceHighlighter({
         return (
           <div
             key={index}
-            ref={el => sentenceRefs.current[index] = el}
+            ref={(el: HTMLDivElement | null) => {
+              if (sentenceRefs.current) {
+                sentenceRefs.current[index] = el;
+              }
+            }}
             className={cn(
               "relative group cursor-pointer",
               "transition-all duration-300 ease-out",
