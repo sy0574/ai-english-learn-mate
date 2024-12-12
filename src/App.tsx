@@ -8,7 +8,6 @@ import AdminGuard from '@/components/admin/AdminGuard';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import SettingsPage from '@/components/settings/SettingsPage';
 import MemberCenter from '@/components/subscription/MemberCenter';
-import PricingPage from '@/components/subscription/PricingPage';
 import HomePage from '@/components/home/HomePage';
 
 export default function App() {
@@ -26,7 +25,6 @@ export default function App() {
                   <Route path="/ai-assistant" element={<div>AI助手</div>} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/member-center" element={<MemberCenter />} />
-                  <Route path="/pricing" element={<PricingPage />} />
                   <Route 
                     path="/admin" 
                     element={

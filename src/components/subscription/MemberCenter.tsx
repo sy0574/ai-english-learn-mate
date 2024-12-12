@@ -1,202 +1,231 @@
-'use client';
-
+import { Check } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { 
+  SubscriptionTier,
+  PRICING_PLANS as BASE_PRICING_PLANS
+} from '@/lib/types/subscription';
+import { SubscriptionManager } from '@/lib/api/subscriptionManager';
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/auth/AuthProvider';
-import { PRICING_PLANS, SubscriptionTier } from '@/lib/types/subscription';
-import { PaymentMethod } from '@/lib/types/payment';
-import { toast } from 'sonner';
-import { useSubscription } from '@/hooks/useSubscription';
-import { verifyPayment } from '@/api/payment';
-import { getQRCodeUrl } from '@/config/payment';
 
-type PaidTier = Exclude<SubscriptionTier, 'free'>;
+interface QRCodes {
+  wechat: string | null;
+  alipay: string | null;
+}
+
+interface ExtendedPricingPlan {
+  tier: SubscriptionTier;
+  name: string;
+  price: string;
+  description: string;
+  highlighted: boolean;
+  qrCodes: QRCodes;
+  features: string[];
+}
+
+const PRICING_PLANS: ExtendedPricingPlan[] = [
+  {
+    tier: 'free',
+    name: BASE_PRICING_PLANS.free.name,
+    price: '¥0',
+    description: BASE_PRICING_PLANS.free.description,
+    highlighted: false,
+    features: BASE_PRICING_PLANS.free.features,
+    qrCodes: {
+      wechat: null,
+      alipay: null
+    }
+  },
+  {
+    tier: 'pro',
+    name: BASE_PRICING_PLANS.pro.name,
+    price: `¥${BASE_PRICING_PLANS.pro.price}/月`,
+    description: BASE_PRICING_PLANS.pro.description,
+    highlighted: true,
+    features: BASE_PRICING_PLANS.pro.features,
+    qrCodes: {
+      wechat: '/images/payment/wechat-pro.jpg',
+      alipay: '/images/payment/alipay-pro.jpg'
+    }
+  },
+  {
+    tier: 'enterprise',
+    name: BASE_PRICING_PLANS.enterprise.name,
+    price: `¥${BASE_PRICING_PLANS.enterprise.price}/月`,
+    description: BASE_PRICING_PLANS.enterprise.description,
+    highlighted: false,
+    features: BASE_PRICING_PLANS.enterprise.features,
+    qrCodes: {
+      wechat: '/images/payment/wechat-enterprise.jpg',
+      alipay: '/images/payment/alipay-enterprise.jpg'
+    }
+  },
+];
+
+type PaymentMethod = 'wechat' | 'alipay';
 
 export default function MemberCenter() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { currentTier, loading: subscriptionLoading, updateTier } = useSubscription();
-  const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
+  const [currentTier, setCurrentTier] = useState<SubscriptionTier | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<ExtendedPricingPlan | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wechat');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [verificationTimer, setVerificationTimer] = useState<NodeJS.Timeout | null>(null);
 
-  const clearVerificationTimer = useCallback(() => {
-    if (verificationTimer) {
-      clearInterval(verificationTimer);
-      setVerificationTimer(null);
+  const fetchCurrentTier = useCallback(async () => {
+    try {
+      const tier = await SubscriptionManager.getInstance().getCurrentTier();
+      setCurrentTier(tier);
+    } catch (error) {
+      console.error('获取当前会员等级失败:', error);
     }
-  }, [verificationTimer]);
+  }, []);
 
   useEffect(() => {
-    return clearVerificationTimer;
-  }, [clearVerificationTimer]);
+    fetchCurrentTier();
+  }, [fetchCurrentTier]);
 
-  const handleSelectTier = (tier: SubscriptionTier) => {
-    if (tier === currentTier) {
-      toast.error('您已经是该等级会员');
-      return;
-    }
-    setSelectedTier(tier);
-  };
+  const handleUpgrade = useCallback((plan: ExtendedPricingPlan) => {
+    setSelectedPlan(plan);
+    setIsPaymentDialogOpen(true);
+  }, []);
 
-  const startPaymentVerification = useCallback(() => {
-    clearVerificationTimer();
-    setIsProcessing(true);
-
-    const timer = setInterval(async () => {
-      try {
-        const { success } = await verifyPayment('mock-order');
-
-        if (success && selectedTier) {
-          clearInterval(timer);
-          setVerificationTimer(null);
-          const updated = await updateTier(selectedTier);
-          if (updated) {
-            toast.success('支付成功！');
-            navigate(0); // Refresh the current page
-          } else {
-            toast.error('更新订阅失败，请联系客服');
-          }
-        }
-      } catch (error) {
-        console.error('Payment verification error:', error);
-      }
-    }, 3000);
-
-    setVerificationTimer(timer);
-  }, [clearVerificationTimer, navigate, selectedTier, updateTier]);
-
-  useEffect(() => {
-    if (selectedTier && selectedTier !== 'free') {
-      startPaymentVerification();
-    } else {
-      clearVerificationTimer();
-    }
+  const handlePaymentComplete = useCallback(async () => {
+    if (!selectedPlan) return;
     
-    return () => {
-      clearVerificationTimer();
-    };
-  }, [selectedTier, startPaymentVerification, clearVerificationTimer]);
+    try {
+      await SubscriptionManager.getInstance().upgradeTier(selectedPlan.tier);
+      setCurrentTier(selectedPlan.tier);
+      setIsPaymentDialogOpen(false);
+      setSelectedPlan(null);
+    } catch (error) {
+      console.error('升级失败:', error);
+    }
+  }, [selectedPlan]);
 
-  if (!user) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-gray-600">请先登录以查看会员中心</p>
-      </div>
-    );
-  }
-
-  if (subscriptionLoading) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-gray-600">加载中...</p>
-      </div>
-    );
-  }
+  const renderFeatureList = useCallback((features: string[]) => (
+    <div className="space-y-4 mb-6">
+      {features.map((feature, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-2"
+        >
+          <Check className="w-4 h-4 text-primary" />
+          <span>{feature}</span>
+        </div>
+      ))}
+    </div>
+  ), []);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">会员中心</h1>
-      
-      <div className="grid md:grid-cols-3 gap-8 mb-8">
-        {Object.values(PRICING_PLANS).map((plan) => (
-          <div
-            key={plan.id}
-            className={`
-              p-6 rounded-lg shadow-lg
-              ${selectedTier === plan.id ? 'ring-2 ring-blue-500' : ''}
-              ${currentTier === plan.id ? 'bg-blue-50' : 'bg-white'}
-            `}
+    <div className="container mx-auto py-12">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold mb-4">会员中心</h1>
+        <p className="text-xl text-muted-foreground">
+          解锁更多高级功能，提升您的学习体验
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-8 mb-12">
+        {PRICING_PLANS.map((plan) => (
+          <Card
+            key={plan.tier}
+            className={`p-6 ${
+              plan.highlighted ? 'border-primary shadow-lg' : ''
+            }`}
           >
-            <h2 className="text-2xl font-bold mb-4">{plan.name}</h2>
-            <p className="text-gray-600 mb-4">{plan.description}</p>
-            <p className="text-3xl font-bold mb-6">
-              ¥{plan.price}
-              <span className="text-sm font-normal text-gray-600">/月</span>
-            </p>
-            <ul className="mb-6 space-y-2">
-              {plan.features.map((feature, index) => (
-                <li key={index} className="flex items-center">
-                  <svg
-                    className="w-4 h-4 text-green-500 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => handleSelectTier(plan.id)}
-              disabled={currentTier === plan.id || isProcessing}
-              className={`
-                w-full py-2 px-4 rounded-md
-                ${
-                  currentTier === plan.id
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }
-                text-white font-semibold transition-colors
-              `}
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+              <div className="text-3xl font-bold mb-2 text-primary">{plan.price}</div>
+              <p className="text-muted-foreground">{plan.description}</p>
+            </div>
+
+            {renderFeatureList(plan.features)}
+
+            <Button
+              className="w-full"
+              variant={plan.highlighted ? 'default' : 'outline'}
+              disabled={currentTier === plan.tier}
+              onClick={() => handleUpgrade(plan)}
             >
-              {currentTier === plan.id ? '当前等级' : '选择套餐'}
-            </button>
-          </div>
+              {currentTier === plan.tier ? '当前计划' : `升级到${plan.name}`}
+            </Button>
+          </Card>
         ))}
       </div>
 
-      {selectedTier && selectedTier !== 'free' && (
-        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-bold mb-4">支付方式</h3>
-          <div className="flex gap-4 mb-6">
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('wechat')}
-              className={`
-                flex-1 py-2 px-4 rounded-md border
-                ${paymentMethod === 'wechat' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-              `}
-            >
-              微信支付
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('alipay')}
-              className={`
-                flex-1 py-2 px-4 rounded-md border
-                ${paymentMethod === 'alipay' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-              `}
-            >
-              支付宝
-            </button>
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>扫码支付</DialogTitle>
+            <DialogDescription>
+              请使用支付宝或微信扫描下方二维码完成支付
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4">
+            {selectedPlan && (
+              <>
+                <div className="text-center mb-4">
+                  <p className="font-semibold">{selectedPlan.name}</p>
+                  <p className="text-2xl font-bold text-primary">{selectedPlan.price}</p>
+                </div>
+                <div className="flex gap-4 mb-4">
+                  <Button
+                    variant={paymentMethod === 'wechat' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('wechat')}
+                  >
+                    微信支付
+                  </Button>
+                  <Button
+                    variant={paymentMethod === 'alipay' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('alipay')}
+                  >
+                    支付宝
+                  </Button>
+                </div>
+                {selectedPlan.qrCodes[paymentMethod] ? (
+                  <div className="relative w-64 h-64">
+                    <img
+                      src={selectedPlan.qrCodes[paymentMethod]!}
+                      alt={`${paymentMethod === 'wechat' ? '微信' : '支付宝'}支付二维码`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">免费版无需支付</p>
+                )}
+                {selectedPlan.tier !== 'free' && (
+                  <Button onClick={handlePaymentComplete} className="w-full">
+                    我已完成支付
+                  </Button>
+                )}
+              </>
+            )}
           </div>
+        </DialogContent>
+      </Dialog>
 
-          <div className="text-center">
-            <div className="mb-4">
+      <div className="text-center text-muted-foreground mt-12">
+        <div className="max-w-xl mx-auto bg-muted/50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold mb-4">如遇问题，加开发者Carl本人微信👇🏻</h3>
+          <div className="flex flex-col items-center space-y-4">
+
+            <div className="relative w-32 h-32 bg-background rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
               <img
-                src={getQRCodeUrl(paymentMethod, selectedTier as PaidTier)}
-                alt={`${paymentMethod === 'wechat' ? '微信' : '支付宝'}支付二维码`}
-                className="mx-auto w-64 h-64 object-contain"
+                src="/images/contact/wechat-contact.jpg"
+                alt="Carl私人微信"
+                className="w-full h-full object-contain p-2"
               />
             </div>
-            <p className="text-sm text-gray-600 mb-2">
-              请使用{paymentMethod === 'wechat' ? '微信' : '支付宝'}扫码支付
-            </p>
-            <p className="text-xs text-gray-500">
-              支付完成后会自动刷新页面
-            </p>
+            <p className="text-xs text-muted-foreground">活跃时间: 9:00-21:00</p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
-}
+} 

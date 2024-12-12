@@ -72,7 +72,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <Button onClick={() => setOpen(true)} className="gap-2">
         <Upload className="w-4 h-4" />
-        开启新篇
+        添加新篇
       </Button>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
