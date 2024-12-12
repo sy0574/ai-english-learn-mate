@@ -22,7 +22,7 @@ export interface PricingPlan {
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
   free: {
     maxTemplates: 3,
-    maxDailyRequests: 2, // 每天只能使用2次AI功能
+    maxDailyRequests: 10, // 每天只能使用10次AI功能
     availableModels: ['gpt-4o-mini'],
     customTemplates: false,
     prioritySupport: false,
