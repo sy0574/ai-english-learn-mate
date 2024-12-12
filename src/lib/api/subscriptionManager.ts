@@ -1,27 +1,12 @@
+import { supabase } from '@/lib/supabase';
 import { SubscriptionTier, SUBSCRIPTION_LIMITS } from '@/lib/types/subscription';
 
 export class SubscriptionManager {
   private static instance: SubscriptionManager;
   private currentTier: SubscriptionTier = 'free';
-  private dailyRequestCount: number = 0;
-  private lastRequestDate: string = '';
+  private userId: string | null = null;
 
-  private constructor() {
-    // 从本地存储加载状态
-    const savedTier = localStorage.getItem('subscription_tier');
-    if (savedTier) {
-      this.currentTier = savedTier as SubscriptionTier;
-    }
-
-    const today = new Date().toDateString();
-    const savedDate = localStorage.getItem('last_request_date');
-    const savedCount = localStorage.getItem('daily_request_count');
-
-    if (savedDate === today && savedCount) {
-      this.lastRequestDate = savedDate;
-      this.dailyRequestCount = parseInt(savedCount, 10);
-    }
-  }
+  private constructor() {}
 
   public static getInstance(): SubscriptionManager {
     if (!SubscriptionManager.instance) {
@@ -30,79 +15,76 @@ export class SubscriptionManager {
     return SubscriptionManager.instance;
   }
 
-  public getCurrentTier(): SubscriptionTier {
+  public async initialize(userId: string): Promise<void> {
+    this.userId = userId;
+    await this.loadSubscription();
+  }
+
+  private async loadSubscription(): Promise<void> {
+    if (!this.userId) return;
+
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .select('tier')
+      .eq('user_id', this.userId)
+      .single();
+
+    if (error) {
+      console.error('Error loading subscription:', error);
+      return;
+    }
+
+    if (data) {
+      this.currentTier = data.tier as SubscriptionTier;
+    }
+  }
+
+  public async getCurrentTier(): Promise<SubscriptionTier> {
+    if (!this.userId) {
+      return 'free';
+    }
+    await this.loadSubscription();
     return this.currentTier;
   }
 
-  public getLimits() {
+  public async upgradeTier(tier: SubscriptionTier): Promise<void> {
+    if (!this.userId) {
+      throw new Error('用户未初始化');
+    }
+
+    const { error } = await supabase
+      .from('user_subscriptions')
+      .upsert({
+        user_id: this.userId,
+        tier,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('Error upgrading subscription:', error);
+      throw new Error('升级订阅失败');
+    }
+
+    this.currentTier = tier;
+  }
+
+  public getLimits(): typeof SUBSCRIPTION_LIMITS['free'] {
     return SUBSCRIPTION_LIMITS[this.currentTier];
   }
 
-  public async checkAndIncrementRequests(): Promise<boolean> {
-    const today = new Date().toDateString();
-    
-    // 如果是新的一天，重置计数器
-    if (this.lastRequestDate !== today) {
-      this.dailyRequestCount = 0;
-      this.lastRequestDate = today;
-    }
+  public async getTemplateCount(): Promise<number> {
+    if (!this.userId) return 0;
 
-    // 检查是否超过限制
-    if (this.dailyRequestCount >= this.getLimits().maxDailyRequests) {
-      return false;
-    }
+    const { count, error } = await supabase
+      .from('templates')
+      .select('*', { count: 'exact' })
+      .eq('user_id', this.userId);
 
-    // 增加计数并保存
-    this.dailyRequestCount++;
-    localStorage.setItem('last_request_date', today);
-    localStorage.setItem('daily_request_count', this.dailyRequestCount.toString());
-    return true;
-  }
-
-  public getDailyRequestCount(): number {
-    const today = new Date().toDateString();
-    if (this.lastRequestDate !== today) {
+    if (error) {
+      console.error('Error getting template count:', error);
       return 0;
     }
-    return this.dailyRequestCount;
-  }
 
-  public canCreateTemplate(): boolean {
-    const templates = localStorage.getItem('task-templates');
-    if (!templates) return true;
-    
-    const currentCount = JSON.parse(templates).length;
-    return currentCount < this.getLimits().maxTemplates;
-  }
-
-  public canUseCustomTemplate(): boolean {
-    return this.getLimits().customTemplates;
-  }
-
-  public hasPrioritySupport(): boolean {
-    return this.getLimits().prioritySupport;
-  }
-
-  public hasAPIAccess(): boolean {
-    return this.getLimits().apiAccess;
-  }
-
-  public hasAdvancedAnalytics(): boolean {
-    return this.getLimits().advancedAnalytics;
-  }
-
-  public getTemplateCount(): number {
-    const templates = localStorage.getItem('task-templates');
-    if (templates) {
-      return JSON.parse(templates).length;
-    }
-    return 0;
-  }
-
-  // 在实际项目中，这些方法应该与后端API交互
-  public async upgradeTier(newTier: SubscriptionTier): Promise<void> {
-    // 这里应该调用支付API和后端升级接口
-    this.currentTier = newTier;
-    localStorage.setItem('subscription_tier', newTier);
+    return count || 0;
   }
 }

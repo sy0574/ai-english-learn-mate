@@ -22,8 +22,8 @@ export interface PricingPlan {
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
   free: {
     maxTemplates: 3,
-    maxDailyRequests: 10,
-    availableModels: ['gpt-3.5-turbo'],
+    maxDailyRequests: 2, // 每天只能使用2次AI功能
+    availableModels: ['gpt-4o-mini'],
     customTemplates: false,
     prioritySupport: false,
     apiAccess: false,
@@ -42,8 +42,8 @@ export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> =
   },
   enterprise: {
     maxTemplates: 999999,
-    maxDailyRequests: 999999,
-    availableModels: ['gpt-3.5-turbo', 'gpt-4', 'claude-2'],
+    maxDailyRequests: 1000,
+    availableModels: ['stepfun', 'gpt-4o-mini', 'claude-3.5-sonnet'],
     customTemplates: true,
     prioritySupport: true,
     apiAccess: true,
@@ -69,7 +69,7 @@ export const PRICING_PLANS: Record<SubscriptionTier, PricingPlan> = {
     id: 'pro',
     name: '专业版',
     description: '解锁更多高级功能',
-    price: 29,
+    price: 69,
     features: [
       '每日100次AI对话',
       '10个任务模板',
@@ -83,7 +83,7 @@ export const PRICING_PLANS: Record<SubscriptionTier, PricingPlan> = {
     id: 'enterprise',
     name: '企业版',
     description: '定制化解决方案',
-    price: 299,
+    price: 199,
     features: [
       '无限AI对话',
       '无限任务模板',

@@ -1,181 +1,202 @@
-import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SubscriptionManager } from '@/lib/api/subscriptionManager';
-import { UsageLimitsManager } from '@/lib/api/usageLimitsManager';
-import { PRICING_PLANS } from '@/lib/types/subscription';
-import { QRCodeSVG } from 'qrcode.react';
-import { useAuth } from '@/components/auth/AuthProvider';
+'use client';
 
-type OrderStatus = 'pending' | 'success' | 'failed';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { PRICING_PLANS, SubscriptionTier } from '@/lib/types/subscription';
+import { PaymentMethod } from '@/lib/types/payment';
+import { toast } from 'sonner';
+import { useSubscription } from '@/hooks/useSubscription';
+import { verifyPayment } from '@/api/payment';
+import { getQRCodeUrl } from '@/config/payment';
+
+type PaidTier = Exclude<SubscriptionTier, 'free'>;
 
 export default function MemberCenter() {
-  const [_paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay'>('wechat');
-  const [showPayment, setShowPayment] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [_orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
-  const [dailyUsage, setDailyUsage] = useState(0);
-
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const subscriptionManager = SubscriptionManager.getInstance();
-  const usageLimitsManager = UsageLimitsManager.getInstance();
-  const currentTier = subscriptionManager.getCurrentTier();
-  const limits = subscriptionManager.getLimits();
+  const { currentTier, loading: subscriptionLoading, updateTier } = useSubscription();
+  const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wechat');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [verificationTimer, setVerificationTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const clearVerificationTimer = useCallback(() => {
+    if (verificationTimer) {
+      clearInterval(verificationTimer);
+      setVerificationTimer(null);
+    }
+  }, [verificationTimer]);
 
   useEffect(() => {
-    const fetchUsage = async () => {
-      if (user) {
-        try {
-          const usage = await usageLimitsManager.getDailyUsage(user.id);
-          setDailyUsage(usage);
-        } catch (error) {
-          console.error('Error fetching daily usage:', error);
-        }
-      }
-    };
+    return clearVerificationTimer;
+  }, [clearVerificationTimer]);
 
-    fetchUsage();
-  }, [user]);
-
-  const _handleUpgrade = async (planId: string) => {
-    try {
-      // 在实际项目中，这里应该调用后端API创建订单
-      const mockOrderResponse = {
-        orderId: 'ORDER_' + Date.now(),
-        qrCode: 'https://example.com/mock-qr-code',
-      };
-
-      setQrCodeUrl(mockOrderResponse.qrCode);
-      setShowPayment(true);
-      setOrderStatus('pending');
-
-      // 模拟订单状态轮询
-      const checkOrderStatus = setInterval(async () => {
-        // 在实际项目中，这里应该调用后端API检查订单状态
-        const mockStatus: OrderStatus = 'pending';
-        
-        if (mockStatus !== 'pending') {
-          clearInterval(checkOrderStatus);
-          setOrderStatus(mockStatus);
-          
-          if (mockStatus === 'success') {
-            setShowPayment(false);
-            // 更新订阅状态
-            await subscriptionManager.upgradeTier(planId as any);
-          }
-        }
-      }, 3000);
-
-      // 清理定时器
-      return () => clearInterval(checkOrderStatus);
-    } catch (error) {
-      console.error('创建订单失败:', error);
-      setOrderStatus('failed');
+  const handleSelectTier = (tier: SubscriptionTier) => {
+    if (tier === currentTier) {
+      toast.error('您已经是该等级会员');
+      return;
     }
+    setSelectedTier(tier);
   };
 
-  return (
-    <div className="container mx-auto py-8">
-      <div className="grid gap-8">
-        {/* 会员状态卡片 */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">
-                当前会员等级：{PRICING_PLANS[currentTier].name}
-              </h2>
-              <p className="text-muted-foreground">
-                {PRICING_PLANS[currentTier].description}
-              </p>
-            </div>
-            <Button onClick={() => setShowPayment(true)}>升级会员</Button>
-          </div>
+  const startPaymentVerification = useCallback(() => {
+    clearVerificationTimer();
+    setIsProcessing(true);
 
-          {/* 使用统计 */}
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span>今日句子分析次数</span>
-                <span>{dailyUsage} / {limits.maxDailyRequests}</span>
-              </div>
-              <Progress
-                value={(dailyUsage / limits.maxDailyRequests) * 100}
-              />
-            </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span>可用模板数</span>
-                <span>{subscriptionManager.getTemplateCount()} / {limits.maxTemplates}</span>
-              </div>
-              <Progress
-                value={(subscriptionManager.getTemplateCount() / limits.maxTemplates) * 100}
-              />
-            </div>
-          </div>
-        </Card>
+    const timer = setInterval(async () => {
+      try {
+        const { success } = await verifyPayment('mock-order');
 
-        {/* 支付弹窗 */}
-        <Dialog open={showPayment} onOpenChange={setShowPayment}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>选择支付方式</DialogTitle>
-            </DialogHeader>
-            <Tabs
-              defaultValue="wechat"
-              onValueChange={(value) => setPaymentMethod(value as 'wechat' | 'alipay')}
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="wechat">微信支付</TabsTrigger>
-                <TabsTrigger value="alipay">支付宝</TabsTrigger>
-              </TabsList>
-              <TabsContent value="wechat" className="mt-4">
-                <div className="flex flex-col items-center">
-                  <QRCodeSVG
-                    value={qrCodeUrl || 'https://example.com/mock-wechat-pay'}
-                    size={200}
-                    level="H"
-                    imageSettings={{
-                      src: '/images/payment/wechat-pay-logo.png',
-                      width: 40,
-                      height: 40,
-                      excavate: true,
-                    }}
-                  />
-                  <p className="mt-4 text-muted-foreground">
-                    请使用微信扫描二维码完成支付
-                  </p>
-                </div>
-              </TabsContent>
-              <TabsContent value="alipay" className="mt-4">
-                <div className="flex flex-col items-center">
-                  <QRCodeSVG
-                    value={qrCodeUrl || 'https://example.com/mock-alipay'}
-                    size={200}
-                    level="H"
-                    imageSettings={{
-                      src: '/images/payment/alipay-logo.png',
-                      width: 40,
-                      height: 40,
-                      excavate: true,
-                    }}
-                  />
-                  <p className="mt-4 text-muted-foreground">
-                    请使用支付宝扫描二维码完成支付
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </DialogContent>
-        </Dialog>
+        if (success && selectedTier) {
+          clearInterval(timer);
+          setVerificationTimer(null);
+          const updated = await updateTier(selectedTier);
+          if (updated) {
+            toast.success('支付成功！');
+            navigate(0); // Refresh the current page
+          } else {
+            toast.error('更新订阅失败，请联系客服');
+          }
+        }
+      } catch (error) {
+        console.error('Payment verification error:', error);
+      }
+    }, 3000);
+
+    setVerificationTimer(timer);
+  }, [clearVerificationTimer, navigate, selectedTier, updateTier]);
+
+  useEffect(() => {
+    if (selectedTier && selectedTier !== 'free') {
+      startPaymentVerification();
+    } else {
+      clearVerificationTimer();
+    }
+    
+    return () => {
+      clearVerificationTimer();
+    };
+  }, [selectedTier, startPaymentVerification, clearVerificationTimer]);
+
+  if (!user) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-gray-600">请先登录以查看会员中心</p>
       </div>
+    );
+  }
+
+  if (subscriptionLoading) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-gray-600">加载中...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-center mb-8">会员中心</h1>
+      
+      <div className="grid md:grid-cols-3 gap-8 mb-8">
+        {Object.values(PRICING_PLANS).map((plan) => (
+          <div
+            key={plan.id}
+            className={`
+              p-6 rounded-lg shadow-lg
+              ${selectedTier === plan.id ? 'ring-2 ring-blue-500' : ''}
+              ${currentTier === plan.id ? 'bg-blue-50' : 'bg-white'}
+            `}
+          >
+            <h2 className="text-2xl font-bold mb-4">{plan.name}</h2>
+            <p className="text-gray-600 mb-4">{plan.description}</p>
+            <p className="text-3xl font-bold mb-6">
+              ¥{plan.price}
+              <span className="text-sm font-normal text-gray-600">/月</span>
+            </p>
+            <ul className="mb-6 space-y-2">
+              {plan.features.map((feature, index) => (
+                <li key={index} className="flex items-center">
+                  <svg
+                    className="w-4 h-4 text-green-500 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => handleSelectTier(plan.id)}
+              disabled={currentTier === plan.id || isProcessing}
+              className={`
+                w-full py-2 px-4 rounded-md
+                ${
+                  currentTier === plan.id
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }
+                text-white font-semibold transition-colors
+              `}
+            >
+              {currentTier === plan.id ? '当前等级' : '选择套餐'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {selectedTier && selectedTier !== 'free' && (
+        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-bold mb-4">支付方式</h3>
+          <div className="flex gap-4 mb-6">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('wechat')}
+              className={`
+                flex-1 py-2 px-4 rounded-md border
+                ${paymentMethod === 'wechat' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+              `}
+            >
+              微信支付
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('alipay')}
+              className={`
+                flex-1 py-2 px-4 rounded-md border
+                ${paymentMethod === 'alipay' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+              `}
+            >
+              支付宝
+            </button>
+          </div>
+
+          <div className="text-center">
+            <div className="mb-4">
+              <img
+                src={getQRCodeUrl(paymentMethod, selectedTier as PaidTier)}
+                alt={`${paymentMethod === 'wechat' ? '微信' : '支付宝'}支付二维码`}
+                className="mx-auto w-64 h-64 object-contain"
+              />
+            </div>
+            <p className="text-sm text-gray-600 mb-2">
+              请使用{paymentMethod === 'wechat' ? '微信' : '支付宝'}扫码支付
+            </p>
+            <p className="text-xs text-gray-500">
+              支付完成后会自动刷新页面
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

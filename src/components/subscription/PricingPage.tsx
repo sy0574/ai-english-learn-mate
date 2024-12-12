@@ -24,14 +24,14 @@ const PRICING_PLANS = [
   {
     tier: 'pro' as SubscriptionTier,
     name: '进阶版',
-    price: '¥99/月',
+    price: '¥69/月',
     description: '适合深度学习者',
     highlighted: true,
   },
   {
     tier: 'enterprise' as SubscriptionTier,
     name: '专业版',
-    price: '¥299/月',
+    price: '¥199/月',
     description: '适合团队和机构使用',
     highlighted: false,
   },
