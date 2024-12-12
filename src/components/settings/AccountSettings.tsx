@@ -5,14 +5,16 @@ import { useAuth } from '../auth/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AdminManager } from '@/lib/api/adminManager';
 import { AdminRole } from '@/lib/types/admin';
-import { Settings } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AccountSettings() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkAdminRole = async () => {
@@ -36,6 +38,17 @@ export default function AccountSettings() {
   const formatDate = (date: string | undefined) => {
     if (!date) return '未知';
     return new Date(date).toLocaleString('zh-CN');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success('退出登录成功');
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('退出登录失败');
+    }
   };
 
   return (
@@ -65,13 +78,6 @@ export default function AccountSettings() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>订阅状态</Label>
-            <div className="text-sm text-muted-foreground">
-              {localStorage.getItem('subscription_tier') === 'premium' ? '高级版' : '免费版'}
-            </div>
-          </div>
-
           {adminRole && (
             <div className="pt-4 border-t">
               <Label>管理员功能</Label>
@@ -85,6 +91,17 @@ export default function AccountSettings() {
               </div>
             </div>
           )}
+
+          <div className="pt-4 border-t">
+            <Button 
+              variant="destructive" 
+              className="w-full gap-2"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4" />
+              退出登录
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
