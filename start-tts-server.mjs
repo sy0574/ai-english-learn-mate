@@ -39,7 +39,7 @@ app.post('/api/tts', async (req, res) => {
     const rateParam = ratePercent.startsWith('-') ? ratePercent : `+${ratePercent}`;
     
     // 使用 edge-tts 生成音频
-    const command = `/opt/miniconda3/bin/edge-tts --voice ${voice} --rate=${rateParam} --text "${escapedText}" --write-media ${outputFile}`;
+    const command = `/venv/bin/python -m edge_tts --voice ${voice} --rate=${rateParam} --text "${escapedText}" --write-media ${outputFile}`;
     console.log('Running command:', command);
     
     const { stdout, stderr } = await execAsync(command);
