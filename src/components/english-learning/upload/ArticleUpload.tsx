@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, FileText, X } from 'lucide-react';
+import { Upload, FileText, X, ImagePlus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Article } from '@/types/article';
+import { createWorker } from 'tesseract.js';
 
 interface ArticleUploadProps {
   onUpload: (article: Omit<Article, 'id' | 'createdAt'>) => void;
@@ -24,6 +25,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
   const [difficulty, setDifficulty] = useState<Article['difficulty']>('intermediate');
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState('');
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,46 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
     setOpen(false);
     
     toast.success('文章上传成功');
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+      toast.error('请上传图片文件');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('图片大小不能超过5MB');
+      return;
+    }
+
+    setIsProcessingImage(true);
+    try {
+      const worker = await createWorker('eng+chi_sim');
+      
+      const imageUrl = URL.createObjectURL(file);
+      const { data: { text } } = await worker.recognize(imageUrl);
+      
+      await worker.terminate();
+      URL.revokeObjectURL(imageUrl);
+
+      if (text.trim()) {
+        setContent(text.trim());
+        toast.success('文字识别成功');
+      } else {
+        toast.error('未能识别出文字，请尝试其他图片');
+      }
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast.error('文字识别失败，请重试');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const addTag = () => {
@@ -92,14 +134,42 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
 
           <div className="space-y-2">
             <Label htmlFor="content">内容</Label>
-            <Textarea
-              id="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="min-h-[200px]"
-              placeholder="粘贴内容"
-              required
-            />
+            <div className="flex flex-col gap-2">
+              <Textarea
+                id="content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[200px]"
+                placeholder="粘贴内容"
+                required
+              />
+              <div className="flex justify-end gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={isProcessingImage}
+                />
+                <Label
+                  htmlFor="image-upload"
+                  className="cursor-pointer inline-flex items-center justify-center gap-2 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3"
+                >
+                  {isProcessingImage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      识别中...
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlus className="h-4 w-4" />
+                      OCR识别
+                    </>
+                  )}
+                </Label>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
