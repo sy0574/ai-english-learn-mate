@@ -43,11 +43,11 @@ spec:
   clusterIPs:
     - None
   ports:
-    - name: http
+    - name: http5173
       port: 5173
       protocol: TCP
       targetPort: 5173
-    - name: http
+    - name: http3001
       port: 3001
       protocol: TCP
       targetPort: 3001
