@@ -1,6 +1,8 @@
 import { AIModelManager } from './aiModelManager';
 import type { SentenceAnalysisResult } from './types';
 import { APIError } from '@/lib/utils/errorHandler';
+import { UsageLimitsManager } from './usageLimitsManager';
+import { supabase } from '@/lib/supabase';
 
 const STORAGE_KEY = 'sentence-analyses';
 const MAX_RETRIES = 3;
@@ -9,11 +11,44 @@ const RETRY_DELAY = 1000; // 1秒
 // 添加延迟函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// 安全的编码函数
+function safeEncode(str: string): string {
+  // 先将字符串转换为 UTF-8 编码的字节数组
+  const utf8Bytes = new TextEncoder().encode(str);
+  // 将字节数组转换为 Base64
+  return btoa(String.fromCharCode.apply(null, [...utf8Bytes]));
+}
+
+// 安全的解码函数（预留给将来可能的解码需求）
+function _safeDecode(str: string): string {
+  // 将 Base64 转换为字节数组
+  const binaryStr = atob(str);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  // 将字节数组转换为 UTF-8 字符串
+  return new TextDecoder().decode(bytes);
+}
+
 export async function analyzeSentenceStructure(sentence: string): Promise<SentenceAnalysisResult> {
   const modelManager = AIModelManager.getInstance();
+  const usageLimitsManager = UsageLimitsManager.getInstance();
 
   if (!sentence?.trim()) {
     throw new Error('请提供要分析的句子');
+  }
+
+  // 获取当前用户
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new APIError('请先登录');
+  }
+
+  // 检查使用限制
+  const canProceed = await usageLimitsManager.checkAndIncrementUsage(user.id);
+  if (!canProceed) {
+    throw new APIError('已达到今日免费使用次数限制，请升级到专业版继续使用');
   }
 
   let lastError: Error | null = null;
@@ -21,6 +56,9 @@ export async function analyzeSentenceStructure(sentence: string): Promise<Senten
 
   while (retries < MAX_RETRIES) {
     try {
+      console.log('Sending analysis request for sentence:', sentence);
+      
+      // 构建分析提示
       const prompt = `Please analyze this English sentence and return ONLY a JSON object with no additional text or explanation:
 
 "${sentence}"
@@ -50,27 +88,23 @@ Required JSON format:
 
 Remember: Return ONLY the JSON object, no other text.`;
 
-      console.log('Sending analysis request for sentence:', sentence);
       const result = await modelManager.makeRequest('sentenceStructure', prompt);
       console.log('Raw API response:', result);
       
       try {
-        // 清理和预处理响应
+        // Clean and preprocess the response
         const cleanedResult = result.trim();
+        let jsonStr = cleanedResult;
 
-        // 尝试提取JSON部分
-        const jsonMatch = cleanedResult.match(/```json\s*([\s\S]*?)\s*```/) || 
-                         cleanedResult.match(/\{[\s\S]*\}/);
-        
-        if (!jsonMatch) {
-          console.error('No JSON found in response');
-          throw new APIError('未找到有效的JSON响应');
+        // If the response is wrapped in a code block, extract just the JSON
+        if (cleanedResult.startsWith('```json')) {
+          const match = cleanedResult.match(/```json\s*([\s\S]*?)\s*```/);
+          if (match && match[1]) {
+            jsonStr = match[1].trim();
+          }
         }
 
-        const jsonStr = jsonMatch[1] || jsonMatch[0];
-        console.log('Extracted JSON:', jsonStr);
-
-        // 尝试解析JSON
+        // Parse the JSON
         let parsedResult: SentenceAnalysisResult;
         try {
           parsedResult = JSON.parse(jsonStr);
@@ -80,7 +114,7 @@ Remember: Return ONLY the JSON object, no other text.`;
           throw new APIError('JSON解析失败，响应格式不正确');
         }
 
-        // 验证结果结构
+        // Validate the result structure
         if (!parsedResult || typeof parsedResult !== 'object') {
           console.error('Invalid result structure:', parsedResult);
           throw new APIError('解析结果不是有效的对象');
@@ -101,7 +135,7 @@ Remember: Return ONLY the JSON object, no other text.`;
           throw new APIError('缺少语法规则分析');
         }
 
-        // 保存分析结果
+        // Save the analysis result
         await saveSentenceAnalysis(sentence, parsedResult);
         return parsedResult;
       } catch (error) {
@@ -143,8 +177,8 @@ export async function saveSentenceAnalysis(
       localStorage.getItem(STORAGE_KEY) || '{}'
     );
     
-    // Use sentence hash as key to handle long sentences
-    const key = btoa(sentence).slice(0, 32);
+    // 使用安全的编码函数
+    const key = safeEncode(sentence).slice(0, 32);
     savedAnalyses[key] = {
       sentence,
       analysis,
@@ -166,7 +200,8 @@ export function getSavedSentenceAnalysis(
       localStorage.getItem(STORAGE_KEY) || '{}'
     );
     
-    const key = btoa(sentence).slice(0, 32);
+    // 使用安全的编码函数
+    const key = safeEncode(sentence).slice(0, 32);
     return savedAnalyses[key]?.analysis || null;
   } catch {
     return null;

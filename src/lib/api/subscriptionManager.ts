@@ -1,26 +1,22 @@
-import { SubscriptionTier, SUBSCRIPTION_LIMITS } from '@/lib/types/subscription';
+import { supabase } from '@/lib/supabase';
+import { SubscriptionTier } from '@/lib/types/subscription';
 
 export class SubscriptionManager {
   private static instance: SubscriptionManager;
   private currentTier: SubscriptionTier = 'free';
-  private dailyRequestCount: number = 0;
-  private lastRequestDate: string = '';
+  private userId: string | null = null;
+  private initialized: boolean = false;
 
   private constructor() {
-    // 从本地存储加载状态
+    // Initialize from localStorage if available
     const savedTier = localStorage.getItem('subscription_tier');
-    if (savedTier) {
+    if (savedTier && this.isValidTier(savedTier)) {
       this.currentTier = savedTier as SubscriptionTier;
     }
+  }
 
-    const today = new Date().toDateString();
-    const savedDate = localStorage.getItem('last_request_date');
-    const savedCount = localStorage.getItem('daily_request_count');
-
-    if (savedDate === today && savedCount) {
-      this.lastRequestDate = savedDate;
-      this.dailyRequestCount = parseInt(savedCount, 10);
-    }
+  private isValidTier(tier: string): tier is SubscriptionTier {
+    return ['free', 'pro', 'enterprise'].includes(tier);
   }
 
   public static getInstance(): SubscriptionManager {
@@ -30,79 +26,95 @@ export class SubscriptionManager {
     return SubscriptionManager.instance;
   }
 
-  public getCurrentTier(): SubscriptionTier {
+  public async initialize(userId: string): Promise<void> {
+    console.log('=== INITIALIZING SUBSCRIPTION MANAGER ===');
+    console.log('User ID:', userId);
+    console.log('Previous state:', { userId: this.userId, tier: this.currentTier });
+    
+    if (this.userId !== userId || !this.initialized) {
+      this.userId = userId;
+      this.initialized = false;
+      await this.loadSubscription();
+      this.initialized = true;
+    } else {
+      console.log('Manager already initialized for this user');
+    }
+  }
+
+  private async loadSubscription(): Promise<void> {
+    if (!this.userId) {
+      console.log('No user ID, using free tier');
+      this.currentTier = 'free';
+      localStorage.setItem('subscription_tier', 'free');
+      return;
+    }
+
+    try {
+      console.log('Loading subscription for user:', this.userId);
+      
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('tier')
+        .eq('user_id', this.userId)
+        .single();
+
+      if (error) {
+        console.error('Error loading subscription:', error);
+        this.currentTier = 'free';
+        localStorage.setItem('subscription_tier', 'free');
+        return;
+      }
+
+      if (data && this.isValidTier(data.tier)) {
+        console.log('Subscription loaded:', data.tier);
+        this.currentTier = data.tier;
+        localStorage.setItem('subscription_tier', data.tier);
+      } else {
+        console.log('No valid subscription found, using free tier');
+        this.currentTier = 'free';
+        localStorage.setItem('subscription_tier', 'free');
+      }
+    } catch (error) {
+      console.error('Error in loadSubscription:', error);
+      this.currentTier = 'free';
+      localStorage.setItem('subscription_tier', 'free');
+    }
+  }
+
+  public async getCurrentTier(): Promise<SubscriptionTier> {
+    if (!this.userId || !this.initialized) {
+      console.log('Getting current tier - not initialized, returning free');
+      return 'free';
+    }
+    await this.loadSubscription();
+    console.log('Getting current tier:', this.currentTier);
     return this.currentTier;
   }
 
-  public getLimits() {
-    return SUBSCRIPTION_LIMITS[this.currentTier];
-  }
-
-  public async checkAndIncrementRequests(): Promise<boolean> {
-    const today = new Date().toDateString();
-    
-    // 如果是新的一天，重置计数器
-    if (this.lastRequestDate !== today) {
-      this.dailyRequestCount = 0;
-      this.lastRequestDate = today;
+  public async upgradeTier(tier: SubscriptionTier): Promise<void> {
+    if (!this.userId || !this.initialized) {
+      throw new Error('用户未初始化');
     }
 
-    // 检查是否超过限制
-    if (this.dailyRequestCount >= this.getLimits().maxDailyRequests) {
-      return false;
+    console.log('Upgrading subscription:', { userId: this.userId, tier });
+
+    const { error } = await supabase
+      .from('user_subscriptions')
+      .upsert({
+        user_id: this.userId,
+        tier,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (error) {
+      console.error('Error upgrading subscription:', error);
+      throw new Error('升级订阅失败');
     }
 
-    // 增加计数并保存
-    this.dailyRequestCount++;
-    localStorage.setItem('last_request_date', today);
-    localStorage.setItem('daily_request_count', this.dailyRequestCount.toString());
-    return true;
-  }
-
-  public getDailyRequestCount(): number {
-    const today = new Date().toDateString();
-    if (this.lastRequestDate !== today) {
-      return 0;
-    }
-    return this.dailyRequestCount;
-  }
-
-  public canCreateTemplate(): boolean {
-    const templates = localStorage.getItem('task-templates');
-    if (!templates) return true;
-    
-    const currentCount = JSON.parse(templates).length;
-    return currentCount < this.getLimits().maxTemplates;
-  }
-
-  public canUseCustomTemplate(): boolean {
-    return this.getLimits().customTemplates;
-  }
-
-  public hasPrioritySupport(): boolean {
-    return this.getLimits().prioritySupport;
-  }
-
-  public hasAPIAccess(): boolean {
-    return this.getLimits().apiAccess;
-  }
-
-  public hasAdvancedAnalytics(): boolean {
-    return this.getLimits().advancedAnalytics;
-  }
-
-  public getTemplateCount(): number {
-    const templates = localStorage.getItem('task-templates');
-    if (templates) {
-      return JSON.parse(templates).length;
-    }
-    return 0;
-  }
-
-  // 在实际项目中，这些方法应该与后端API交互
-  public async upgradeTier(newTier: SubscriptionTier): Promise<void> {
-    // 这里应该调用支付API和后端升级接口
-    this.currentTier = newTier;
-    localStorage.setItem('subscription_tier', newTier);
+    this.currentTier = tier;
+    localStorage.setItem('subscription_tier', tier);
+    console.log('Subscription upgraded successfully');
   }
 }

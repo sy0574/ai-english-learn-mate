@@ -53,7 +53,7 @@ export default function AnalysisSection({
         {analysis ? (
           <Tabs defaultValue="vocabulary" className="flex flex-col h-full">
             <div className="border-b p-4">
-              <h3 className="text-xl font-semibold mb-2">多维分析</h3>
+              <h3 className="text-xl font-semibold mb-2">多维吸收</h3>
               <TabsList className="w-full justify-start bg-secondary rounded-lg p-1">
                 <TabsTrigger
                   value="vocabulary"

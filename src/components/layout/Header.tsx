@@ -1,11 +1,9 @@
-import { ChevronLeft, ChevronRight, Moon, Sun, LogOut, Crown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, Sun, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/theme-provider';
-import { useAuth } from '@/components/auth/AuthProvider';
-import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { SubscriptionManager } from '@/lib/api/subscriptionManager';
 import { PRICING_PLANS } from '@/lib/types/subscription';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,20 +18,8 @@ interface HeaderProps {
 
 export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) {
   const { theme: _theme, setTheme } = useTheme();
-  const { signOut } = useAuth();
-  const currentTier = SubscriptionManager.getInstance().getCurrentTier();
+  const { currentTier } = useSubscription();
   const currentPlan = PRICING_PLANS[currentTier];
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      toast.success('已退出登录');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '退出登录失败，请重试';
-      console.error('Logout error:', error);
-      toast.error(errorMessage);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -42,7 +28,7 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
           <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
             {isSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
-          <h2 className="text-xl font-semibold">AI智学</h2>
+          <h2 className="text-xl font-semibold">AI智学👫</h2>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/member-center">
@@ -60,27 +46,17 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                Light
+              <DropdownMenuItem onClick={() => setTheme('light')}>
+                浅色
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                Dark
+              <DropdownMenuItem onClick={() => setTheme('dark')}>
+                深色
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                System
+              <DropdownMenuItem onClick={() => setTheme('system')}>
+                系统
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleSignOut}
-            className="text-muted-foreground hover:text-destructive"
-            title="退出登录"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="sr-only">退出登录</span>
-          </Button>
         </div>
       </div>
     </header>

@@ -1,157 +1,231 @@
-import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  SubscriptionTier,
+  PRICING_PLANS as BASE_PRICING_PLANS
+} from '@/lib/types/subscription';
 import { SubscriptionManager } from '@/lib/api/subscriptionManager';
-import { PRICING_PLANS } from '@/lib/types/subscription';
-import { QRCodeSVG } from 'qrcode.react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface QRCodes {
+  wechat: string | null;
+  alipay: string | null;
+}
+
+interface ExtendedPricingPlan {
+  tier: SubscriptionTier;
+  name: string;
+  price: string;
+  description: string;
+  highlighted: boolean;
+  qrCodes: QRCodes;
+  features: string[];
+}
+
+const PRICING_PLANS: ExtendedPricingPlan[] = [
+  {
+    tier: 'free',
+    name: BASE_PRICING_PLANS.free.name,
+    price: '¥0',
+    description: BASE_PRICING_PLANS.free.description,
+    highlighted: false,
+    features: BASE_PRICING_PLANS.free.features,
+    qrCodes: {
+      wechat: null,
+      alipay: null
+    }
+  },
+  {
+    tier: 'pro',
+    name: BASE_PRICING_PLANS.pro.name,
+    price: `¥${BASE_PRICING_PLANS.pro.price}/月`,
+    description: BASE_PRICING_PLANS.pro.description,
+    highlighted: true,
+    features: BASE_PRICING_PLANS.pro.features,
+    qrCodes: {
+      wechat: '/images/payment/wechat-pro.jpg',
+      alipay: '/images/payment/alipay-pro.jpg'
+    }
+  },
+  {
+    tier: 'enterprise',
+    name: BASE_PRICING_PLANS.enterprise.name,
+    price: `¥${BASE_PRICING_PLANS.enterprise.price}/月`,
+    description: BASE_PRICING_PLANS.enterprise.description,
+    highlighted: false,
+    features: BASE_PRICING_PLANS.enterprise.features,
+    qrCodes: {
+      wechat: '/images/payment/wechat-enterprise.jpg',
+      alipay: '/images/payment/alipay-enterprise.jpg'
+    }
+  },
+];
+
+type PaymentMethod = 'wechat' | 'alipay';
 
 export default function MemberCenter() {
-  const [_paymentMethod, setPaymentMethod] = useState<'wechat' | 'alipay'>('wechat');
-  const [showPayment, setShowPayment] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [_orderStatus, setOrderStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+  const [currentTier, setCurrentTier] = useState<SubscriptionTier | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<ExtendedPricingPlan | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wechat');
 
-  const subscriptionManager = SubscriptionManager.getInstance();
-  const currentTier = subscriptionManager.getCurrentTier();
-  const limits = subscriptionManager.getLimits();
-  const [dailyRequests, setDailyRequests] = useState(0);
-
-  useEffect(() => {
-    // 在实际项目中，这里应该从后端获取用户的使用统计
-    const count = parseInt(localStorage.getItem('daily_request_count') || '0', 10);
-    setDailyRequests(count);
+  const fetchCurrentTier = useCallback(async () => {
+    try {
+      const tier = await SubscriptionManager.getInstance().getCurrentTier();
+      setCurrentTier(tier);
+    } catch (error) {
+      console.error('获取当前会员等级失败:', error);
+    }
   }, []);
 
-  const _handleUpgrade = async (planId: string) => {
+  useEffect(() => {
+    fetchCurrentTier();
+  }, [fetchCurrentTier]);
+
+  const handleUpgrade = useCallback((plan: ExtendedPricingPlan) => {
+    setSelectedPlan(plan);
+    setIsPaymentDialogOpen(true);
+  }, []);
+
+  const handlePaymentComplete = useCallback(async () => {
+    if (!selectedPlan) return;
+    
     try {
-      // 在实际项目中，这里应该调用后端API创建订单
-      const mockOrderResponse = {
-        orderId: 'ORDER_' + Date.now(),
-        qrCode: 'https://example.com/mock-qr-code',
-      };
-
-      setQrCodeUrl(mockOrderResponse.qrCode);
-      setShowPayment(true);
-
-      // 模拟订单状态轮询
-      const checkOrderStatus = setInterval(async () => {
-        // 在实际项目中，这里应该调用后端API检查订单状态
-        const mockStatus = 'pending';
-        if (mockStatus === 'success') {
-          clearInterval(checkOrderStatus);
-          setOrderStatus('success');
-          setShowPayment(false);
-          // 更新订阅状态
-          await subscriptionManager.upgradeTier(planId as any);
-        }
-      }, 3000);
+      await SubscriptionManager.getInstance().upgradeTier(selectedPlan.tier);
+      setCurrentTier(selectedPlan.tier);
+      setIsPaymentDialogOpen(false);
+      setSelectedPlan(null);
     } catch (error) {
-      console.error('创建订单失败:', error);
+      console.error('升级失败:', error);
     }
-  };
+  }, [selectedPlan]);
+
+  const renderFeatureList = useCallback((features: string[]) => (
+    <div className="space-y-4 mb-6">
+      {features.map((feature, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-2"
+        >
+          <Check className="w-4 h-4 text-primary" />
+          <span>{feature}</span>
+        </div>
+      ))}
+    </div>
+  ), []);
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid gap-8">
-        {/* 会员状态卡片 */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">
-                当前会员等级：{PRICING_PLANS[currentTier].name}
-              </h2>
-              <p className="text-muted-foreground">
-                {PRICING_PLANS[currentTier].description}
-              </p>
-            </div>
-            <Button onClick={() => setShowPayment(true)}>升级会员</Button>
-          </div>
+    <div className="container mx-auto py-12">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold mb-4">会员中心</h1>
+        <p className="text-xl text-muted-foreground">
+          解锁更多高级功能，提升您的学习体验
+        </p>
+      </div>
 
-          {/* 使用统计 */}
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span>今日请求次数</span>
-                <span>{dailyRequests} / {limits.maxDailyRequests}</span>
-              </div>
-              <Progress
-                value={(dailyRequests / limits.maxDailyRequests) * 100}
-              />
+      <div className="grid md:grid-cols-3 gap-8 mb-12">
+        {PRICING_PLANS.map((plan) => (
+          <Card
+            key={plan.tier}
+            className={`p-6 ${
+              plan.highlighted ? 'border-primary shadow-lg' : ''
+            }`}
+          >
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+              <div className="text-3xl font-bold mb-2 text-primary">{plan.price}</div>
+              <p className="text-muted-foreground">{plan.description}</p>
             </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span>可用模板数</span>
-                <span>{subscriptionManager.getTemplateCount()} / {limits.maxTemplates}</span>
-              </div>
-              <Progress
-                value={(subscriptionManager.getTemplateCount() / limits.maxTemplates) * 100}
-              />
-            </div>
-          </div>
-        </Card>
 
-        {/* 支付弹窗 */}
-        <Dialog open={showPayment} onOpenChange={setShowPayment}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>选择支付方式</DialogTitle>
-            </DialogHeader>
-            <Tabs
-              defaultValue="wechat"
-              onValueChange={(value) => setPaymentMethod(value as 'wechat' | 'alipay')}
+            {renderFeatureList(plan.features)}
+
+            <Button
+              className="w-full"
+              variant={plan.highlighted ? 'default' : 'outline'}
+              disabled={currentTier === plan.tier}
+              onClick={() => handleUpgrade(plan)}
             >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="wechat">微信支付</TabsTrigger>
-                <TabsTrigger value="alipay">支付宝</TabsTrigger>
-              </TabsList>
-              <TabsContent value="wechat" className="mt-4">
-                <div className="flex flex-col items-center">
-                  <QRCodeSVG
-                    value={qrCodeUrl || 'https://example.com/mock-wechat-pay'}
-                    size={200}
-                    level="H"
-                    imageSettings={{
-                      src: '/images/payment/wechat-pay-logo.png',
-                      width: 40,
-                      height: 40,
-                      excavate: true,
-                    }}
-                  />
-                  <p className="mt-4 text-muted-foreground">
-                    请使用微信扫描二维码完成支付
-                  </p>
+              {currentTier === plan.tier ? '当前计划' : `升级到${plan.name}`}
+            </Button>
+          </Card>
+        ))}
+      </div>
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>扫码支付</DialogTitle>
+            <DialogDescription>
+              请使用支付宝或微信扫描下方二维码完成支付
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4">
+            {selectedPlan && (
+              <>
+                <div className="text-center mb-4">
+                  <p className="font-semibold">{selectedPlan.name}</p>
+                  <p className="text-2xl font-bold text-primary">{selectedPlan.price}</p>
                 </div>
-              </TabsContent>
-              <TabsContent value="alipay" className="mt-4">
-                <div className="flex flex-col items-center">
-                  <QRCodeSVG
-                    value={qrCodeUrl || 'https://example.com/mock-alipay'}
-                    size={200}
-                    level="H"
-                    imageSettings={{
-                      src: '/images/payment/alipay-logo.png',
-                      width: 40,
-                      height: 40,
-                      excavate: true,
-                    }}
-                  />
-                  <p className="mt-4 text-muted-foreground">
-                    请使用支付宝扫描二维码完成支付
-                  </p>
+                <div className="flex gap-4 mb-4">
+                  <Button
+                    variant={paymentMethod === 'wechat' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('wechat')}
+                  >
+                    微信支付
+                  </Button>
+                  <Button
+                    variant={paymentMethod === 'alipay' ? 'default' : 'outline'}
+                    onClick={() => setPaymentMethod('alipay')}
+                  >
+                    支付宝
+                  </Button>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </DialogContent>
-        </Dialog>
+                {selectedPlan.qrCodes[paymentMethod] ? (
+                  <div className="relative w-64 h-64">
+                    <img
+                      src={selectedPlan.qrCodes[paymentMethod]!}
+                      alt={`${paymentMethod === 'wechat' ? '微信' : '支付宝'}支付二维码`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">免费版无需支付</p>
+                )}
+                {selectedPlan.tier !== 'free' && (
+                  <Button onClick={handlePaymentComplete} className="w-full">
+                    我已完成支付
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="text-center text-muted-foreground mt-12">
+        <div className="max-w-xl mx-auto bg-muted/50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold mb-4">如遇问题，加开发者Carl本人微信👇🏻</h3>
+          <div className="flex flex-col items-center space-y-4">
+
+            <div className="relative w-32 h-32 bg-background rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+              <img
+                src="/images/contact/wechat-contact.jpg"
+                alt="Carl私人微信"
+                className="w-full h-full object-contain p-2"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">活跃时间: 9:00-21:00</p>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
+} 

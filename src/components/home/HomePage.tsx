@@ -7,7 +7,6 @@ import {
   Crown,
   BarChart,
   MessageSquare,
-  Volume2,
 } from 'lucide-react';
 import { EdgeTTS } from '@/components/EdgeTTS';
 import { useState } from 'react';
@@ -115,12 +114,6 @@ export default function HomePage() {
             <Button variant="outline" className="gap-2">
               <BookOpen className="w-4 h-4" />
               课程中心
-            </Button>
-          </Link>
-          <Link to="/pricing">
-            <Button variant="outline" className="gap-2">
-              <Crown className="w-4 h-4" />
-              会员方案
             </Button>
           </Link>
         </div>

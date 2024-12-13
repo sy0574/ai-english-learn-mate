@@ -194,13 +194,116 @@ export class PlaybackController implements IPlaybackController {
     this.audioElement = new Audio();
     this.audioElement.playbackRate = this.store.getState().config.rate;
     this.audioElement.volume = this.store.getState().config.volume;
+    this.setupAudioEventListeners();
   }
 
   private setupAudioEventListeners(): void {
     if (!this.audioElement) return;
 
-    this.audioElement.addEventListener('timeupdate', this.handleTimeUpdate);
+    let rafId: number;
+    const updateProgress = () => {
+      if (this.audioElement && !this.audioElement.paused) {
+        const currentTime = this.audioElement.currentTime;
+        const duration = this.audioElement.duration;
+        const progress = (currentTime / duration) * 100;
+
+        // 提前计算下一个单词的时间点
+        const nextWordTime = this.calculateNextWordTime(currentTime, duration);
+        
+        // 计算当前播放进度的具体信息
+        const playbackInfo = {
+          progress,
+          currentTime,
+          duration,
+          nextWordTime,
+          text: this.queueManager.getCurrentItem()?.text,
+          // 添加更多详细信息
+          estimatedWordsPerSecond: this.calculateWordsPerSecond(duration),
+          currentWordIndex: this.getCurrentWordIndex(currentTime, duration)
+        };
+
+        this.store.dispatch({
+          type: 'SET_PLAYBACK_STATE',
+          payload: playbackInfo
+        });
+
+        this.eventEmitter.emit(TTSEvent.PlaybackProgress, playbackInfo);
+        rafId = requestAnimationFrame(updateProgress);
+      }
+    };
+
+    this.audioElement.addEventListener('play', () => {
+      rafId = requestAnimationFrame(updateProgress);
+    });
+
+    this.audioElement.addEventListener('pause', () => {
+      cancelAnimationFrame(rafId);
+    });
+
+    this.audioElement.addEventListener('ended', () => {
+      cancelAnimationFrame(rafId);
+    });
+
     this.audioElement.addEventListener('error', this.handlePlaybackError);
+  }
+
+  private calculateNextWordTime(currentTime: number, duration: number): number {
+    const currentItem = this.queueManager.getCurrentItem();
+    if (!currentItem) return currentTime;
+
+    // 使用更精确的单词分割方法
+    const words = currentItem.text.match(/\b\w+\b/g) || [];
+    if (words.length === 0) return currentTime;
+
+    // 估算每个单词的时长（考虑单词长度）
+    const totalCharacters = words.reduce((sum, word) => sum + word.length, 0);
+    const averageTimePerChar = duration / totalCharacters;
+
+    // 计算每个单词的预计时长
+    const wordTimes: number[] = words.map(word => word.length * averageTimePerChar);
+    
+    // 计算累积时间点
+    const timePoints: number[] = [];
+    let accumulatedTime = 0;
+    wordTimes.forEach(time => {
+      accumulatedTime += time;
+      timePoints.push(accumulatedTime);
+    });
+
+    // 找到当前时间点之后的下一个单词时间点
+    const nextTimePoint = timePoints.find(time => time > currentTime);
+    return nextTimePoint || currentTime;
+  }
+
+  private calculateWordsPerSecond(duration: number): number {
+    const currentItem = this.queueManager.getCurrentItem();
+    if (!currentItem) return 0;
+
+    const words = currentItem.text.match(/\b\w+\b/g) || [];
+    return words.length / duration;
+  }
+
+  private getCurrentWordIndex(currentTime: number, duration: number): number {
+    const currentItem = this.queueManager.getCurrentItem();
+    if (!currentItem) return -1;
+
+    const words = currentItem.text.match(/\b\w+\b/g) || [];
+    const totalCharacters = words.reduce((sum, word) => sum + word.length, 0);
+    const averageTimePerChar = duration / totalCharacters;
+
+    // 计算到当前时间点已经播放的字符数
+    const playedCharacters = Math.floor(currentTime / averageTimePerChar);
+
+    // 找到对应的单词索引
+    let accumulatedChars = 0;
+    for (let i = 0; i < words.length; i++) {
+      accumulatedChars += words[i].length;
+      if (accumulatedChars > playedCharacters) {
+        return i;
+      }
+    }
+
+    return words.length - 1;
   }
 
   private cleanupAudioElement(): void {
@@ -229,7 +332,8 @@ export class PlaybackController implements IPlaybackController {
       this.eventEmitter.emit(TTSEvent.PlaybackProgress, {
         progress,
         currentTime,
-        duration
+        duration,
+        text: this.queueManager.getCurrentItem()?.text
       });
     }
   };

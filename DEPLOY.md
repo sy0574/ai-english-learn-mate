@@ -43,7 +43,7 @@ VITE_STEP_API_URL=https://api.stepfun.com/v1/chat/completions
 
 ### 4. 启动开发服务器
 ```bash
-# 启动 开发服务器
+# 启动开发服务器
 npm run dev
 ```
 启动后，在浏览器中访问：http://localhost:5173

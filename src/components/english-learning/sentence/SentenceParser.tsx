@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { analyzeSentenceStructure, saveSentenceAnalysis } from '@/lib/api/sentenceAnalysis';
 import { Button } from '@/components/ui/button';
-import { Book, Play, Pause, Loader2, Save } from 'lucide-react';
+import { Book, Play, Pause, Loader2, Save, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCourseStore } from '@/stores/courseStore';
 import SentenceStructureAnalysis from './SentenceStructureAnalysis';
 import { throttle } from 'lodash';
 import type { SentenceAnalysisResult } from '@/lib/api/types';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { UsageLimitsManager } from '@/lib/api/usageLimitsManager';
 
 interface SentenceParserProps {
   sentence: string;
@@ -17,10 +19,12 @@ export default function SentenceParser({ sentence }: SentenceParserProps) {
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [usageLimitReached, setUsageLimitReached] = useState(false);
   const MAX_ERRORS = 3;
   const ERROR_COOLDOWN = 60000; // 1分钟冷却时间
   const [lastErrorTime, setLastErrorTime] = useState<Date | null>(null);
   
+  const { user } = useAuth();
   const { 
     aiGeneratedContent,
     setAiGeneratedContent,
@@ -43,6 +47,15 @@ export default function SentenceParser({ sentence }: SentenceParserProps) {
       return;
     }
 
+    if (!user) {
+      toast.error('请先登录');
+      return;
+    }
+
+    if (usageLimitReached) {
+      return;
+    }
+
     // 检查错误冷却期
     if (lastErrorTime && errorCount >= MAX_ERRORS) {
       const timeSinceLastError = Date.now() - lastErrorTime.getTime();
@@ -56,9 +69,24 @@ export default function SentenceParser({ sentence }: SentenceParserProps) {
       }
     }
 
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     
     try {
+      // 检查使用限制
+      const usageLimits = UsageLimitsManager.getInstance();
+      const canProceed = await usageLimits.checkAndIncrementUsage(user.id);
+      
+      if (!canProceed) {
+        const maxRequests = usageLimits.getMaxDailyRequests();
+        setUsageLimitReached(true);
+        toast.error(`您今日的免费分析次数已用完（${maxRequests}次/天）。升级会员以获取更多次数！`);
+        return;
+      }
+
       const result = await analyzeSentenceStructure(sentence);
       
       if (!validateAnalysisResult(result)) {
@@ -81,20 +109,30 @@ export default function SentenceParser({ sentence }: SentenceParserProps) {
     } finally {
       setLoading(false);
     }
-  }, [sentence, errorCount, lastErrorTime, setAiGeneratedContent, setErrorCount, setLastErrorTime]);
+  }, [sentence, errorCount, lastErrorTime, setAiGeneratedContent, user, loading, usageLimitReached]);
 
   // 使用useCallback包装throttledAnalyze
   const throttledAnalyze = useCallback(
-    throttle(handleAnalyze, 5000, { leading: true, trailing: false }),
+    throttle(handleAnalyze, 10000, { 
+      leading: true, 
+      trailing: false
+    }),
     [handleAnalyze]
   );
 
   useEffect(() => {
-    if (sentence && !analysis && !loading) {
-      throttledAnalyze();
-    }
+    let mounted = true;
+
+    const checkAndAnalyze = async () => {
+      if (sentence && !analysis && !loading && mounted) {
+        await throttledAnalyze();
+      }
+    };
+
+    checkAndAnalyze();
     
     return () => {
+      mounted = false;
       throttledAnalyze.cancel();
     };
   }, [sentence, analysis, loading, throttledAnalyze]);
@@ -111,6 +149,30 @@ export default function SentenceParser({ sentence }: SentenceParserProps) {
       toast.error(message);
     }
   };
+
+  if (usageLimitReached) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="flex items-center space-x-2 text-yellow-600">
+          <AlertTriangle className="w-5 h-5" />
+          <p className="font-medium">使用次数已达上限</p>
+        </div>
+        <p className="text-muted-foreground text-center">
+          您今日的免费分析次数已用完。<br />
+          升级到专业版以获取更多分析次数！
+        </p>
+        <Button 
+          variant="default"
+          onClick={() => {
+            // 导航到会员中心
+            window.location.href = '/member-center';
+          }}
+        >
+          升级会员
+        </Button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

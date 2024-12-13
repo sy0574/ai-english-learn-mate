@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import { css } from '@emotion/react';
 
@@ -14,10 +14,14 @@ const TextSpan = styled.span<{ isPlaying: boolean }>`
   margin: 2px;
   border-radius: 4px;
   line-height: 1.6;
-  transition: all 0.3s ease-in-out;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1),
+              background-color 0.12s cubic-bezier(0.2, 0, 0, 1);
   transform-origin: center;
   position: relative;
   z-index: ${({ isPlaying }) => isPlaying ? 1 : 'auto'};
+  will-change: transform, background-color;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
 
   ${({ isPlaying }) => isPlaying && css`
     background-color: var(--tts-highlight-color, #ffd700);
@@ -27,18 +31,24 @@ const TextSpan = styled.span<{ isPlaying: boolean }>`
 `;
 
 export const TTSText: React.FC<TTSTextProps> = ({ text, id, isPlaying }) => {
-  useEffect(() => {
-    if (isPlaying) {
-      console.log(`TTSText [${id}] is now playing`);
-    }
-  }, [isPlaying, id]);
+  const spanRef = useRef<HTMLSpanElement>(null);
 
-  console.log(`TTSText rendering: id=${id}, isPlaying=${isPlaying}`);
+  useEffect(() => {
+    if (isPlaying && spanRef.current) {
+      // Force browser to acknowledge the state change immediately
+      spanRef.current.style.transform = `scale(${isPlaying ? 'var(--tts-font-size-scale, 1.2)' : '1'})`;
+      spanRef.current.style.backgroundColor = 'var(--tts-highlight-color, #ffd700)';
+    }
+  }, [isPlaying]);
 
   return (
     <TextSpan
+      ref={spanRef}
       isPlaying={isPlaying}
       data-id={id}
+      style={{
+        transform: `scale(${isPlaying ? 'var(--tts-font-size-scale, 1.2)' : '1'})`,
+      }}
     >
       {text}
     </TextSpan>
