@@ -36,7 +36,7 @@ export class AudioDomain {
 
     try {
       const startTime = Date.now();
-      const response = await fetch('http://localhost:3001/api/tts', {
+      const response = await fetch('https://ai-english-learn-mate-tts.bolone.cn/api/tts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
