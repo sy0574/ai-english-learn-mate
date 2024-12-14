@@ -1,3 +1,3 @@
 export const API_CONFIG = {
-  TTS_ENDPOINT: 'http://localhost:3001/api/tts',
+  TTS_ENDPOINT: 'https://ai-english-learn-mate-tts.bolone.cn/api/tts',
 } as const;

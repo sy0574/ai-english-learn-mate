@@ -21,6 +21,14 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 5173
+        - name: ai-english-learn-mate-tts
+          image: ${image}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+          command:
+            - node
+            - start-tts-server.mjs
 
 ---
 apiVersion: v1
@@ -35,10 +43,14 @@ spec:
   clusterIPs:
     - None
   ports:
-    - name: http
+    - name: http5173
       port: 5173
       protocol: TCP
       targetPort: 5173
+    - name: http3001
+      port: 3001
+      protocol: TCP
+      targetPort: 3001
   selector:
     app: ai-english-learn-mate
   sessionAffinity: None
@@ -64,7 +76,20 @@ spec:
                   number: 5173
             path: /
             pathType: ImplementationSpecific
+    - host: ai-english-learn-mate-tts.bolone.cn
+      http:
+        paths:
+          - backend:
+              service:
+                name: ai-english-learn-mate
+                port:
+                  number: 3001
+            path: /
+            pathType: ImplementationSpecific
   tls:
     - hosts:
         - ai-english-learn-mate.bolone.cn
+      secretName: ssl-bolone.cn-secret
+    - hosts:
+        - ai-english-learn-mate-tts.bolone.cn
       secretName: ssl-bolone.cn-secret
