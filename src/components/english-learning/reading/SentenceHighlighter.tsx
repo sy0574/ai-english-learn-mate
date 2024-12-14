@@ -97,12 +97,10 @@ export default function SentenceHighlighter({
 
     const eventEmitter = TTSEventEmitter.getInstance();
     let lastWordIndex = -1;
-    let rafId: number;
     
     const unsubscribeProgress = eventEmitter.subscribe(TTSEvent.PlaybackProgress, (state: any) => {
       if (playingSentenceIndex !== null && state.currentTime !== undefined && state.duration !== undefined) {
-        // 使用新的播放进度信息
-        const { currentWordIndex, estimatedWordsPerSecond } = state;
+        const { currentWordIndex } = state;
         
         if (currentWordIndex !== undefined && currentWordIndex !== lastWordIndex) {
           const currentSentence = sentences[playingSentenceIndex];
@@ -110,42 +108,26 @@ export default function SentenceHighlighter({
             .filter(part => part.type === 'word')
             .map(part => part.content);
 
-          // 计算预计的单词播放时间
-          const wordPlayTime = 1 / estimatedWordsPerSecond;
-          
-          // 提前一小段时间触发动画
-          const preloadTime = Math.min(wordPlayTime * 0.2, 0.15); // 提前20%的单词时间或最多150ms
-          
           if (currentWordIndex >= 0 && currentWordIndex < words.length) {
             lastWordIndex = currentWordIndex;
-            const word = words[currentWordIndex];
-            
-            if (word !== playingWord) {
-              // 取消之前的动画帧
-              cancelAnimationFrame(rafId);
-              
-              // 使用 requestAnimationFrame 确保动画流畅
-              rafId = requestAnimationFrame(() => {
-                setPlayingWord(word);
-              });
-            }
+            setPlayingWord(words[currentWordIndex]);
+          } else {
+            setPlayingWord(null);
           }
         }
       }
     });
 
     const unsubscribeComplete = eventEmitter.subscribe(TTSEvent.ItemComplete, () => {
-      cancelAnimationFrame(rafId);
       setPlayingWord(null);
       lastWordIndex = -1;
     });
 
     return () => {
-      cancelAnimationFrame(rafId);
       unsubscribeProgress();
       unsubscribeComplete();
     };
-  }, [playingSentenceIndex, sentences, enableTTS, playingWord]);
+  }, [playingSentenceIndex, sentences, enableTTS]);
 
   // 重置状态
   const resetState = useCallback(() => {
@@ -305,22 +287,14 @@ export default function SentenceHighlighter({
           key={partIndex}
           data-word={part.content}
           className={cn(
-            "inline-block cursor-pointer transition-all duration-150",
+            "inline-block cursor-pointer mx-[1px]",
             !isPlaying && "hover:text-primary/70",
-            isCurrentWord && [
-              "text-gradient-modern font-medium",
+            isCurrentWord ? [
+              "text-primary font-medium",
               "bg-primary/5 px-1 py-0.5 rounded-md",
-              "scale-105",
               "border-b-2 border-primary"
-            ]
+            ] : "text-inherit"
           )}
-          style={{
-            transform: isCurrentWord ? 'scale(1.05)' : 'scale(1)',
-            transition: 'transform 0.15s ease-out',
-            willChange: 'transform',
-            display: 'inline-block',
-            visibility: 'visible'
-          }}
           onClick={(e) => handleWordClick(e, part.content)}
           onDoubleClick={(e) => handleWordDoubleClick(e, part.content)}
         >
@@ -331,8 +305,7 @@ export default function SentenceHighlighter({
     return (
       <span 
         key={partIndex}
-        className="inline-block"
-        style={{ visibility: 'visible' }}
+        className="inline-block mx-[1px]"
       >
         {part.content}
       </span>
@@ -340,7 +313,7 @@ export default function SentenceHighlighter({
   }, [playingWord, handleWordClick, handleWordDoubleClick]);
 
   return (
-    <div className={`space-y-2 ${className} overflow-x-hidden`}>
+    <div className={`space-y-2 ${className}`}>
       {sentences.map((sentence, index) => {
         const parts = parseTextContent(sentence);
         const isSelected = sentence === selectedSentence;
@@ -355,74 +328,53 @@ export default function SentenceHighlighter({
               }
             }}
             className={cn(
-              "relative group cursor-pointer",
-              "transition-all duration-300 ease-out",
-              "break-words whitespace-pre-wrap",
-              !isPlaying && !isSelected && [
-                "px-2",
-                "hover:bg-accent/5"
-              ],
+              "relative group cursor-pointer p-2",
+              "transition-colors duration-200",
+              !isPlaying && !isSelected && "hover:bg-accent/5",
               isSelected && [
-                "px-3 py-2 -mx-2",
-                "apple-glass",
-                "sentence-highlight-gradient",
-                "scale-[1.01]",
-                "rounded-xl"
+                "bg-primary/5",
+                "rounded-lg"
               ],
               isPlaying && [
-                "px-3 py-2 -mx-2",
-                "ring-1 ring-primary/20",
-                "after:absolute after:inset-0",
-                "after:bg-gradient-to-r after:from-primary/5 after:to-transparent",
-                "after:animate-pulse after:duration-2000",
-                "scale-[1.01]",
-                "rounded-xl",
-                "shadow-smooth"
+                "bg-primary/5",
+                "rounded-lg"
               ]
             )}
             style={{
-              fontSize: isSelected ? `${fontSizeScale * 100}%` : undefined,
-              transition: 'all 0.3s ease-out',
-              display: 'block',
-              width: '100%'
+              fontSize: isSelected ? `${fontSizeScale * 100}%` : undefined
             }}
             onClick={() => handleSentenceClick(sentence, index)}
             onMouseEnter={() => setHoveredSentenceIndex(index)}
             onMouseLeave={() => setHoveredSentenceIndex(null)}
           >
-            <span className={cn(
-              "relative block z-10",
-              isPlaying && "text-gradient-modern"
-            )}>
-              {parts.map((part, partIndex) => renderWord(part, partIndex, isPlaying))}
-            </span>
+            <div className="relative">
+              <div className="inline-block">
+                {parts.map((part, partIndex) => renderWord(part, partIndex, isPlaying))}
+              </div>
 
-            {enableTTS && (hoveredSentenceIndex === index || isPlaying) && (
-              <Button
-                variant={isPlaying ? "outline" : "ghost"}
-                className={cn(
-                  "absolute right-2 top-1/2 -translate-y-1/2",
-                  "opacity-0 group-hover:opacity-100",
-                  "transition-all duration-200",
-                  isPlaying ? [
-                    "hover:bg-primary/10 hover:text-primary",
-                    "hover:scale-110"
-                  ] : "hover:bg-accent/5",
-                  isLoading && "cursor-not-allowed opacity-50"
-                )}
-                size="sm"
-                disabled={isLoading}
-                onClick={(e) => handleSentencePlay(e, sentence, index)}
-              >
-                {isLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-primary/20 border-t-primary rounded-full" />
-                ) : isPlaying ? (
-                  <PauseCircle className="h-4 w-4" />
-                ) : (
-                  <PlayCircle className="h-4 w-4" />
-                )}
-              </Button>
-            )}
+              {enableTTS && (hoveredSentenceIndex === index || isPlaying) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isLoading}
+                  className={cn(
+                    "absolute -right-1 top-1/2 -translate-y-1/2",
+                    "opacity-0 group-hover:opacity-100",
+                    "transition-opacity duration-200",
+                    isPlaying && "opacity-100"
+                  )}
+                  onClick={(e) => handleSentencePlay(e, sentence, index)}
+                >
+                  {isLoading ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-primary/20 border-t-primary rounded-full" />
+                  ) : isPlaying ? (
+                    <PauseCircle className="h-4 w-4" />
+                  ) : (
+                    <PlayCircle className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         );
       })}
