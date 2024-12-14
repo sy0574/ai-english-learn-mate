@@ -3,12 +3,17 @@ import { User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SMSService } from '@/lib/services/sms-service';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  signInWithPhone: (phone: string, code: string) => Promise<void>;
+  signUpWithPhone: (phone: string) => Promise<void>;
+  sendVerificationCode: (phone: string) => Promise<{ success: boolean; message: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -25,6 +30,8 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const smsService = SMSService.getInstance();
+  const navigate = useNavigate();
 
   useEffect(() => {
     // 初始化认证状态
@@ -73,6 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('subscription_tier', 'free');
         }
         toast.success('登录成功');
+        setTimeout(() => {
+          navigate('/courses');
+        }, 100); // 添加一个小延迟确保状态更新完成
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out');
         toast.success('已退出登录');
@@ -133,6 +143,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     },
+    signInWithPhone: async (phone: string, code: string) => {
+      try {
+        // 验证验证码
+        const verifyResult = await smsService.verifyCode(phone, code);
+        if (!verifyResult.success) {
+          throw new Error(verifyResult.message);
+        }
+
+        // 使用手机号登录或注册
+        const { data: { user }, error } = await supabase.auth.signUp({
+          email: `${phone}@phone.user`, // 使用手机号生成唯一邮箱
+          password: code, // 使用验证码作为临时密码
+          options: {
+            data: {
+              phone,
+              created_at: new Date().toISOString(),
+            }
+          }
+        });
+
+        if (error) {
+          // 如果用户已存在，尝试登录
+          if (error.message.includes('already registered')) {
+            const { data, error: signInError } = await supabase.auth.signInWithPassword({
+              email: `${phone}@phone.user`,
+              password: code,
+            });
+
+            if (signInError) throw signInError;
+            if (!data.user) throw new Error('登录失败，请重试');
+          } else {
+            throw error;
+          }
+        }
+
+        // 如果是新用户，设置为免费版
+        if (user?.user_metadata?.created_at === user?.created_at) {
+          localStorage.setItem('subscription_tier', 'free');
+        }
+
+        toast.success('登录成功');
+      } catch (error) {
+        const message = getAuthErrorMessage(error);
+        console.error('Phone auth error:', { error, message });
+        toast.error(message);
+        throw error;
+      }
+    },
+    signUpWithPhone: async (phone: string) => {
+      try {
+        // 发送验证码
+        const result = await smsService.sendVerificationCode(phone);
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+        toast.success(result.message);
+      } catch (error) {
+        const message = getAuthErrorMessage(error);
+        console.error('Phone signup error:', { error, message });
+        toast.error(message);
+        throw error;
+      }
+    },
+    sendVerificationCode: async (phone: string) => {
+      return await smsService.sendVerificationCode(phone);
+    },
     signOut: async () => {
       try {
         const { error } = await supabase.auth.signOut();
@@ -168,19 +244,25 @@ function getAuthErrorMessage(error: AuthError | Error | unknown): string {
     const authError = error as AuthError;
     switch (authError.message) {
       case 'Invalid login credentials':
-        return '邮箱或密码错误';
+        return '手机号或验证码错误';
       case 'Email not confirmed':
         return '请先验证邮箱';
       case 'User already registered':
-        return '该邮箱已被注册';
+        return '该手机号已被注册';
       case 'Password should be at least 6 characters':
-        return '密码长度至少为6位';
+        return '验证码格式错误';
       case 'Email rate limit exceeded':
         return '登录尝试次数过多，请稍后再试';
+      case 'Phone number format is invalid':
+        return '手机号格式无效';
+      case 'Unable to validate phone number':
+        return '无法验证手机号';
+      case 'SMS code has expired':
+        return '验证码已过期';
       default:
-        if (authError.message?.includes('credentials')) return '邮箱或密码错误';
-        if (authError.message?.includes('confirmed')) return '请先验证邮箱';
-        if (authError.message?.includes('authorized')) return '该邮箱未授权';
+        if (authError.message?.includes('credentials')) return '手机号或验证码错误';
+        if (authError.message?.includes('confirmed')) return '请先验证手机号';
+        if (authError.message?.includes('authorized')) return '该手机号未授权';
         return authError.message || '操作失败，请重试';
     }
   }
