@@ -305,21 +305,21 @@ export default function SentenceHighlighter({
           key={partIndex}
           data-word={part.content}
           className={cn(
-            "cursor-pointer transition-all duration-150", // 减少过渡时间以提高响应速度
+            "inline-block cursor-pointer transition-all duration-150",
             !isPlaying && "hover:text-primary/70",
             isCurrentWord && [
               "text-gradient-modern font-medium",
-              "bg-primary/5 px-1.5 py-0.5 rounded-md",
-              "scale-110 origin-center",
-              "animate-bounce",
-              "border-b-2 border-primary",
-              "shadow-lg shadow-primary/20"
+              "bg-primary/5 px-1 py-0.5 rounded-md",
+              "scale-105",
+              "border-b-2 border-primary"
             ]
           )}
           style={{
-            transform: isCurrentWord ? 'scale(1.1)' : 'scale(1)',
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-            willChange: 'transform' // 提示浏览器优化动画性能
+            transform: isCurrentWord ? 'scale(1.05)' : 'scale(1)',
+            transition: 'transform 0.15s ease-out',
+            willChange: 'transform',
+            display: 'inline-block',
+            visibility: 'visible'
           }}
           onClick={(e) => handleWordClick(e, part.content)}
           onDoubleClick={(e) => handleWordDoubleClick(e, part.content)}
@@ -328,11 +328,19 @@ export default function SentenceHighlighter({
         </span>
       );
     }
-    return <span key={partIndex}>{part.content}</span>;
+    return (
+      <span 
+        key={partIndex}
+        className="inline-block"
+        style={{ visibility: 'visible' }}
+      >
+        {part.content}
+      </span>
+    );
   }, [playingWord, handleWordClick, handleWordDoubleClick]);
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2 ${className} overflow-x-hidden`}>
       {sentences.map((sentence, index) => {
         const parts = parseTextContent(sentence);
         const isSelected = sentence === selectedSentence;
@@ -349,31 +357,34 @@ export default function SentenceHighlighter({
             className={cn(
               "relative group cursor-pointer",
               "transition-all duration-300 ease-out",
+              "break-words whitespace-pre-wrap",
               !isPlaying && !isSelected && [
                 "px-2",
                 "hover:bg-accent/5"
               ],
               isSelected && [
-                "px-4 py-2 -mx-2",
+                "px-3 py-2 -mx-2",
                 "apple-glass",
                 "sentence-highlight-gradient",
-                "scale-[1.02]",
+                "scale-[1.01]",
                 "rounded-xl"
               ],
               isPlaying && [
-                "px-4 py-2 -mx-2",
+                "px-3 py-2 -mx-2",
                 "ring-1 ring-primary/20",
                 "after:absolute after:inset-0",
                 "after:bg-gradient-to-r after:from-primary/5 after:to-transparent",
                 "after:animate-pulse after:duration-2000",
-                "scale-[1.02]",
+                "scale-[1.01]",
                 "rounded-xl",
                 "shadow-smooth"
               ]
             )}
             style={{
               fontSize: isSelected ? `${fontSizeScale * 100}%` : undefined,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              transition: 'all 0.3s ease-out',
+              display: 'block',
+              width: '100%'
             }}
             onClick={() => handleSentenceClick(sentence, index)}
             onMouseEnter={() => setHoveredSentenceIndex(index)}
@@ -388,9 +399,7 @@ export default function SentenceHighlighter({
 
             {enableTTS && (hoveredSentenceIndex === index || isPlaying) && (
               <Button
-                variant="ghost"
-                size="icon"
-                disabled={isLoading}
+                variant={isPlaying ? "outline" : "ghost"}
                 className={cn(
                   "absolute right-2 top-1/2 -translate-y-1/2",
                   "opacity-0 group-hover:opacity-100",
@@ -401,6 +410,8 @@ export default function SentenceHighlighter({
                   ] : "hover:bg-accent/5",
                   isLoading && "cursor-not-allowed opacity-50"
                 )}
+                size="sm"
+                disabled={isLoading}
                 onClick={(e) => handleSentencePlay(e, sentence, index)}
               >
                 {isLoading ? (
