@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Upload, FileText, X, ImagePlus, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Upload, FileText, X, ImagePlus, Loader2, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Article } from '@/types/article';
 import { createWorker } from 'tesseract.js';
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
 interface ArticleUploadProps {
   onUpload: (article: Omit<Article, 'id' | 'createdAt'>) => void;
@@ -26,6 +27,51 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState('');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('zh-CN');
+  const [isAppendMode, setIsAppendMode] = useState(false);
+  const [tempTranscript, setTempTranscript] = useState('');
+
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
+
+  const languages = [
+    { code: 'zh-CN', name: '中文' },
+    { code: 'en-US', name: 'English' },
+    { code: 'ja-JP', name: '日本語' },
+    { code: 'ko-KR', name: '한국어' },
+  ];
+
+  useEffect(() => {
+    if (transcript) {
+      setTempTranscript(transcript);
+      if (isAppendMode) {
+        setContent(prev => prev + (prev ? '\n' : '') + transcript);
+      } else {
+        setContent(transcript);
+      }
+    }
+  }, [transcript, isAppendMode]);
+
+  const startListening = () => {
+    if (!browserSupportsSpeechRecognition) {
+      toast.error('您的浏览器不支持语音识别功能');
+      return;
+    }
+    resetTranscript();
+    setTempTranscript('');
+    SpeechRecognition.startListening({ 
+      continuous: true,
+      language: selectedLanguage
+    });
+  };
+
+  const stopListening = () => {
+    SpeechRecognition.stopListening();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +189,53 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
                 placeholder="粘贴内容"
                 required
               />
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end items-center gap-3">
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-input bg-background/50 shadow-sm">
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="h-8 rounded-md bg-transparent px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {languages.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="w-[1px] h-6 bg-border/50" />
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAppendMode(!isAppendMode)}
+                    className={`transition-all duration-200 ${isAppendMode ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'hover:bg-secondary/50'}`}
+                  >
+                    {isAppendMode ? '追加模式' : '覆盖模式'}
+                  </Button>
+
+                  <div className="w-[1px] h-6 bg-border/50" />
+
+                  <Button
+                    type="button"
+                    variant={listening ? "destructive" : "ghost"}
+                    size="icon"
+                    className={`transition-all duration-300 ${
+                      listening 
+                        ? 'animate-pulse shadow-md shadow-red-200' 
+                        : 'hover:bg-secondary/50'
+                    }`}
+                    onClick={listening ? stopListening : startListening}
+                  >
+                    {listening ? (
+                      <MicOff className="h-4 w-4" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
                 <Input
                   type="file"
                   accept="image/*"
@@ -154,11 +246,14 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
                 />
                 <Label
                   htmlFor="image-upload"
-                  className="cursor-pointer inline-flex items-center justify-center gap-2 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3"
+                  className={`cursor-pointer inline-flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200 rounded-md px-3 h-9
+                    ${isProcessingImage 
+                      ? 'bg-primary/10 text-primary border-primary/20' 
+                      : 'border border-input bg-background hover:bg-secondary/50'}`}
                 >
                   {isProcessingImage ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
                       识别中...
                     </>
                   ) : (
@@ -169,6 +264,19 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
                   )}
                 </Label>
               </div>
+              {listening && (
+                <div className="mt-2 space-y-2 animate-fadeIn">
+                  <div className="flex items-center gap-2 text-sm text-primary">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    正在录音...
+                  </div>
+                  {tempTranscript && (
+                    <div className="text-sm p-3 bg-secondary/30 rounded-lg border border-secondary transition-all duration-300 hover:border-primary/30">
+                      当前识别: {tempTranscript}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
