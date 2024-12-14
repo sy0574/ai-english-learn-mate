@@ -69,7 +69,7 @@ export const PRICING_PLANS: Record<SubscriptionTier, PricingPlan> = {
     id: 'pro',
     name: '专业版',
     description: '解锁更多高级功能',
-    price: 69,
+    price: 39,
     features: [
       '每日100次AI对话',
       '10个任务模板',
