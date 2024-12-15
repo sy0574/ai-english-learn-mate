@@ -119,6 +119,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     signUp: async (email: string, password: string) => {
       try {
+        // First check if user exists
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single();
+
+        if (existingUser) {
+          throw new Error('该邮箱已被注册');
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -126,12 +137,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: {
               created_at: new Date().toISOString(),
+              subscription_tier: 'free',
+              email_verified: false
             }
           }
         });
 
         if (error) throw error;
         if (!data.user) throw new Error('注册失败，请重试');
+
+        // Create initial profile record
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ]);
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          throw new Error('创建用户档案失败');
+        }
+
+        // Create initial subscription record
+        const { error: subscriptionError } = await supabase
+          .from('user_subscriptions')
+          .insert([
+            {
+              user_id: data.user.id,
+              tier: 'free',
+              updated_at: new Date().toISOString()
+            }
+          ]);
+
+        if (subscriptionError) {
+          console.error('Subscription creation error:', subscriptionError);
+          throw new Error('创建订阅信息失败');
+        }
 
         localStorage.setItem('subscription_tier', 'free');
         toast.success('注册成功！请查收验证邮件');
@@ -256,7 +302,7 @@ function getAuthErrorMessage(error: AuthError | Error | unknown): string {
       case 'Phone number format is invalid':
         return '手机号格式无效';
       case 'Unable to validate phone number':
-        return '无法验证手机号';
+        return '无��验证手机号';
       case 'SMS code has expired':
         return '验证码已过期';
       default:
