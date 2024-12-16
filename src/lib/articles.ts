@@ -17,23 +17,105 @@ const _STORAGE_KEY = 'english-learning-articles';
 const DEFAULT_ARTICLES: Article[] = [
   {
     id: uuidv4(),
-    title: 'Running from Your Protector: The Coffee Tree\'s Paradox',
-    content: `I'll help translate this interesting text about coffee from a botanical perspective...`,
-    difficulty: 'advanced',
-    tags: ['science', 'coffee', 'dopamine', 'survival', 'plant biology'],
-    readingTime: 3,
+    title: 'The Science of Learning: How Our Brain Processes New Information',
+    content: `Learning a new language is one of the most fascinating journeys our brain can undertake. When we encounter new information, our brain creates neural pathways, connecting new knowledge with existing memories and experiences.
+
+The process involves several key areas of the brain:
+1. The prefrontal cortex helps with attention and decision-making
+2. The hippocampus plays a crucial role in forming new memories
+3. The temporal lobe assists with language processing
+4. The amygdala connects emotions with learning experiences
+
+Research shows that active learning - where we engage with the material through reading, speaking, and writing - creates stronger neural connections than passive learning. This is why interactive language learning is often more effective than simply memorizing vocabulary lists.
+
+Tips for effective language learning:
+• Practice regularly, even if just for 15 minutes a day
+• Combine different learning methods (reading, listening, speaking)
+• Connect new words with images or personal experiences
+• Use the language in real-world contexts
+• Get enough sleep to consolidate your learning
+
+Remember: Every time you practice, you're literally rewiring your brain for success!`,
+    difficulty: 'intermediate',
+    tags: ['learning', 'neuroscience', 'study tips', 'brain', 'education'],
+    readingTime: 4,
     createdAt: new Date().toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=800&auto=format&fit=crop'
+    imageUrl: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&fit=crop',
+    isDefault: true
   },
   {
     id: uuidv4(),
-    title: 'DNA repair process key to memory formation',
-    content: `In a recent study published in the journal Nature, researchers found...`,
+    title: 'The Art of Effective Communication',
+    content: `Communication is more than just exchanging words - it's about connecting with others and sharing understanding. Whether you're learning a new language or improving your native speaking skills, effective communication is essential for success.
+
+Key Elements of Communication:
+1. Clarity - Express your thoughts precisely
+2. Active Listening - Pay attention to both words and non-verbal cues
+3. Empathy - Understand the perspective of others
+4. Feedback - Ensure your message is understood correctly
+
+Common Communication Challenges:
+• Language barriers
+• Cultural differences
+• Emotional states
+• Environmental distractions
+
+Tips for Better Communication:
+- Start with simple, clear sentences
+- Use appropriate body language
+- Practice active listening
+- Ask questions when unsure
+- Be patient with yourself and others
+
+Remember: Good communication is a skill that improves with practice. Every conversation is an opportunity to learn and grow.`,
+    difficulty: 'beginner',
+    tags: ['communication', 'language', 'speaking', 'listening', 'social skills'],
+    readingTime: 3,
+    createdAt: new Date().toISOString(),
+    imageUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&auto=format&fit=crop',
+    isDefault: true
+  },
+  {
+    id: uuidv4(),
+    title: 'The Future of Language Learning: AI and Technology',
+    content: `As we move further into the digital age, artificial intelligence (AI) and advanced technology are revolutionizing how we learn languages. These innovations are making language learning more personalized, efficient, and accessible than ever before.
+
+Key Technological Advances:
+1. Natural Language Processing (NLP)
+- Improved speech recognition
+- Real-time translation
+- Grammar correction algorithms
+
+2. Adaptive Learning Systems
+- Personalized learning paths
+- Progress tracking
+- Intelligent feedback
+
+3. Virtual and Augmented Reality
+- Immersive learning environments
+- Real-world simulation
+- Interactive practice scenarios
+
+The Impact on Language Learning:
+• Immediate feedback on pronunciation
+• Customized learning pace
+• Access to native speakers worldwide
+• Gamification of learning process
+• 24/7 learning opportunities
+
+Challenges and Considerations:
+- Balance between tech and human interaction
+- Digital literacy requirements
+- Privacy and data security
+- Quality of AI-generated content
+
+The future of language learning will likely combine the best of human teaching with AI assistance, creating a more effective and engaging learning experience for everyone.`,
     difficulty: 'advanced',
-    tags: ['DNA', 'memory', 'biology'],
+    tags: ['technology', 'AI', 'future', 'education', 'innovation'],
     readingTime: 5,
     createdAt: new Date().toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&auto=format&fit=crop'
+    imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&auto=format&fit=crop',
+    isDefault: true
   }
 ];
 
@@ -47,7 +129,7 @@ async function loadArticles(userId: string | undefined, retryCount = 0): Promise
       return DEFAULT_ARTICLES;
     }
 
-    const { data: articles, error } = await supabase
+    const { data: userArticles, error } = await supabase
       .from('articles')
       .select('*')
       .eq('user_id', userId)
@@ -64,12 +146,13 @@ async function loadArticles(userId: string | undefined, retryCount = 0): Promise
       throw error;
     }
 
-    if (!articles) {
-      console.log('No articles data returned from Supabase');
+    if (!userArticles || userArticles.length === 0) {
+      console.log('No user articles found, using default articles');
       return DEFAULT_ARTICLES;
     }
 
-    return articles.map(article => ({
+    // 合并用户文章和示例文章
+    const mappedUserArticles = userArticles.map(article => ({
       id: article.id,
       title: article.title,
       content: article.content,
@@ -77,8 +160,13 @@ async function loadArticles(userId: string | undefined, retryCount = 0): Promise
       tags: article.tags || [],
       readingTime: article.reading_time,
       createdAt: article.created_at,
-      imageUrl: article.image_url
+      imageUrl: article.image_url,
+      isDefault: false
     }));
+
+    // 将示例文章添加到用户文章列表的末尾
+    return [...mappedUserArticles, ...DEFAULT_ARTICLES];
+
   } catch (error) {
     console.error('Error in loadArticles:', error);
     
@@ -132,7 +220,7 @@ export function useArticles() {
     };
   }, [user?.id]);
 
-  const saveArticle = async (article: Omit<Article, 'id' | 'createdAt'>) => {
+  const addArticle = async (article: Omit<Article, 'id' | 'createdAt'>) => {
     try {
       if (!user?.id) {
         throw new Error('用户未登录');
@@ -167,17 +255,24 @@ export function useArticles() {
       // 保存成功后重新获取文章列表
       await fetchArticles();
       
-      toast.success('文章保存成功');
+      toast.success('文章添加成功');
       return true;
     } catch (error) {
-      console.error('Error saving article:', error);
-      toast.error('保存文章失败，请重试');
+      console.error('Error adding article:', error);
+      toast.error('添加文章失败��请重试');
       return false;
     }
   };
 
   const deleteArticle = async (articleId: string) => {
     try {
+      // 检查是否为示例文章
+      const articleToDelete = articles.find(article => article.id === articleId);
+      if (articleToDelete?.isDefault) {
+        toast.error('示例文章不能删除');
+        return false;
+      }
+
       if (!user?.id) {
         throw new Error('用户未登录');
       }
@@ -209,6 +304,13 @@ export function useArticles() {
 
   const updateArticle = async (updatedArticle: Article) => {
     try {
+      // 检查是否为示例文章
+      const articleToUpdate = articles.find(article => article.id === updatedArticle.id);
+      if (articleToUpdate?.isDefault) {
+        toast.error('示例文章不能修改');
+        return false;
+      }
+
       if (!user?.id) {
         throw new Error('用户未登录');
       }
@@ -252,7 +354,7 @@ export function useArticles() {
     articles,
     loading,
     error,
-    saveArticle,
+    addArticle,
     deleteArticle,
     updateArticle
   };

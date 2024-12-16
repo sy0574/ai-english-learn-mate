@@ -7,6 +7,7 @@ export interface Article {
   createdAt: string;
   readingTime: number;
   imageUrl?: string;
+  isDefault?: boolean;
 }
 
 export interface ArticleAnalysis {

@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
+import ArticleUpload from '@/components/english-learning/upload/ArticleUpload';
 
 interface ReadingLibraryProps {
   onSelectReading: (article: Article) => void;
@@ -51,7 +52,7 @@ function getImageUrl(imageUrl: string | undefined): string {
 }
 
 export default function ReadingLibrary({ onSelectReading }: ReadingLibraryProps) {
-  const { articles, loading, error, deleteArticle, updateArticle } = useArticles();
+  const { articles, loading, error, deleteArticle, updateArticle, addArticle } = useArticles();
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -129,6 +130,31 @@ export default function ReadingLibrary({ onSelectReading }: ReadingLibraryProps)
     );
   });
 
+  const handleArticleUpload = async (articleData: Omit<Article, 'id' | 'createdAt'>) => {
+    try {
+      await addArticle(articleData);
+      toast.success('文章添加成功');
+    } catch (error) {
+      toast.error('添加文章失败');
+      console.error('Error adding article:', error);
+    }
+  };
+
+  if (articles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="w-24 h-24 mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+          <BookOpen className="w-12 h-12 text-primary" />
+        </div>
+        <h3 className="text-2xl font-semibold mb-2">开始您的学习之旅</h3>
+        <p className="text-muted-foreground mb-8 max-w-md">
+          点击下方的"添加新篇"按钮，上传您想要学习的文章或使用语音输入功能开始学习。
+        </p>
+        <ArticleUpload onUpload={handleArticleUpload} />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[200px]">
@@ -152,6 +178,7 @@ export default function ReadingLibrary({ onSelectReading }: ReadingLibraryProps)
         <Button variant="outline" size="icon">
           <Filter className="w-4 h-4" />
         </Button>
+        <ArticleUpload onUpload={handleArticleUpload} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

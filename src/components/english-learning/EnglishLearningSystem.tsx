@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Book, Library } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Article } from '@/types/article';
@@ -14,7 +14,7 @@ import ReadingLibrary from './reading/ReadingLibrary';
 export default function EnglishLearningSystem() {
   const [selectedWord, setSelectedWord] = useState<string>();
   const [selectedSentence, setSelectedSentence] = useState<string>();
-  const { saveArticle } = useArticles();
+  const { articles, loading, addArticle } = useArticles();
   
   const { 
     aiGeneratedContent,
@@ -24,6 +24,13 @@ export default function EnglishLearningSystem() {
     activeTab,
     setActiveTab,
   } = useCourseStore();
+
+  useEffect(() => {
+    if (!loading && articles.length > 0 && !selectedArticle) {
+      setSelectedArticle(articles[0]);
+      setActiveTab('reading');
+    }
+  }, [loading, articles, selectedArticle, setSelectedArticle, setActiveTab]);
 
   const analysis = selectedArticle ? analyzeArticle(selectedArticle.content) : null;
   const aiAnalysis = selectedArticle ? aiGeneratedContent[selectedArticle.id] as AIAnalysisResult : null;
@@ -35,7 +42,7 @@ export default function EnglishLearningSystem() {
       createdAt: new Date().toISOString()
     };
     
-    const success = await saveArticle(newArticle);
+    const success = await addArticle(articleData);
     if (success) {
       setSelectedArticle(newArticle);
       toast.success('添加成功');
@@ -93,7 +100,6 @@ export default function EnglishLearningSystem() {
               <ReadingSection 
                 currentArticle={selectedArticle}
                 onArticleUpload={handleArticleUpload}
-                onAnalysisComplete={() => {}}
                 onWordSelect={handleWordSelect}
                 onSentenceSelect={handleSentenceSelect}
                 selectedSentence={selectedSentence}

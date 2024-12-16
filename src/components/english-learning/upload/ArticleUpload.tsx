@@ -158,7 +158,10 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={() => setOpen(true)} className="gap-2">
+      <Button 
+        onClick={() => setOpen(true)} 
+        className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-6"
+      >
         <Upload className="w-4 h-4" />
         添加新篇
       </Button>
