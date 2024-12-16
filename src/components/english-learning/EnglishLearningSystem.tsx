@@ -81,7 +81,7 @@ export default function EnglishLearningSystem() {
                          data-[state=active]:border-primary rounded-none px-6"
             >
               <Book className="w-4 h-4 mr-2" />
-              深度学习
+              我的课桌
             </TabsTrigger>
             <TabsTrigger 
               value="library"
@@ -89,7 +89,7 @@ export default function EnglishLearningSystem() {
                          data-[state=active]:border-primary rounded-none px-6"
             >
               <Library className="w-4 h-4 mr-2" />
-              知识文库
+              我的书架
             </TabsTrigger>
           </TabsList>
         </div>
