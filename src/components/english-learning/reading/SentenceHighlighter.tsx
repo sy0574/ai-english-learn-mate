@@ -71,6 +71,140 @@ function parseTextContent(text: string): Array<{ type: 'word' | 'punctuation' | 
   return parts;
 }
 
+// 添加新的渲染函数在 parseTextContent 函数后
+function renderSentence(
+  sentence: string,
+  isSelected: boolean,
+  isPlaying: boolean,
+  playingWord: string | null,
+  fontSizeScale: number,
+  handleWordClick: (e: React.MouseEvent<HTMLSpanElement>, word: string) => void,
+  handleWordDoubleClick: (e: React.MouseEvent<HTMLSpanElement>, word: string) => void,
+  showPlayButton: boolean,
+  onPlayClick: (e: React.MouseEvent<HTMLButtonElement>) => void,
+  isLoading: boolean
+) {
+  const parts = parseTextContent(sentence);
+  
+  return (
+    <div
+      className={cn(
+        "text-base relative group w-full",
+        "transition-all duration-300 ease-in-out",
+        "hover:pr-12",
+        "flex flex-wrap items-start",
+        isSelected && "bg-primary/5 rounded-lg p-2",
+        isPlaying && "bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 dark:from-primary/10 dark:via-primary/15 dark:to-primary/10"
+      )}
+      style={{
+        lineHeight: '1.5',      // 句内行间距
+        marginBottom: '0.7em', // 句间行间距
+        minWidth: 0,
+        width: '100%',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        textAlign: 'left',
+        hyphens: 'none',
+        WebkitHyphens: 'none',
+        msHyphens: 'none',
+        fontFeatureSettings: '"kern"',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        fontSize: isPlaying ? `${fontSizeScale}rem` : 'inherit',
+        borderLeft: isPlaying ? '3px solid var(--primary)' : '3px solid transparent',
+        paddingLeft: isPlaying ? '1rem' : '1.15rem'
+      }}
+    >
+      <div className="flex-1 min-w-0 break-words">
+        {parts.map((part, index) => {
+          if (part.type === 'word') {
+            const isCurrentWord = isPlaying && part.content === playingWord;
+            return (
+              <span
+                key={index}
+                data-word={part.content}
+                className={cn(
+                  "inline-block relative cursor-pointer select-text",
+                  "transition-all duration-200 ease-in-out",
+                  {
+                    'text-primary font-medium': isCurrentWord,
+                    'hover:text-primary/70': !isCurrentWord
+                  }
+                )}
+                style={{
+                  padding: '0 0.01em', // 控制单词的间距
+                  margin: '0',
+                  transform: isCurrentWord ? 'scale(1.02)' : 'scale(1)',
+                  transformOrigin: 'center',
+                  borderBottom: isCurrentWord ? '1.5px solid currentColor' : 'none',
+                  letterSpacing: 'normal'
+                }}
+                onClick={(e) => handleWordClick(e, part.content)}
+                onDoubleClick={(e) => handleWordDoubleClick(e, part.content)}
+              >
+                {part.content}
+              </span>
+            );
+          }
+          
+          return (
+            <span
+              key={index}
+              className={cn(
+                "inline-block select-text",
+                part.type === 'punctuation' && "text-gray-800 dark:text-gray-200"
+              )}
+              style={{
+                whiteSpace: part.type === 'space' ? 'pre' : 'normal',
+                margin: '0',
+                fontSize: 'inherit',
+                verticalAlign: 'baseline'
+              }}
+            >
+              {part.content}
+            </span>
+          );
+        })}
+      </div>
+
+      {showPlayButton && (
+        <div 
+          className={cn(
+            "absolute right-2 top-1/2 -translate-y-1/2",
+            "opacity-0 group-hover:opacity-100",
+            "transition-all duration-200 ease-in-out",
+            "transform group-hover:translate-x-0 translate-x-4"
+          )}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-7 w-7 rounded-full",
+              "hover:bg-primary/10",
+              "focus:outline-none focus:ring-2 focus:ring-primary/30",
+              "transition-all duration-200",
+              "backdrop-blur-sm",
+              isPlaying ? "bg-primary/10" : "bg-white/50 dark:bg-gray-800/50"
+            )}
+            onClick={onPlayClick}
+            disabled={isLoading && !isPlaying}
+          >
+            {isLoading && !isPlaying ? (
+              <div className="animate-pulse">
+                <div className="w-3.5 h-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : isPlaying ? (
+              <PauseCircle className="h-3.5 w-3.5 text-primary" />
+            ) : (
+              <PlayCircle className="h-3.5 w-3.5 text-primary/80" />
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SentenceHighlighter({
   text,
   onWordClick,
@@ -208,13 +342,37 @@ export default function SentenceHighlighter({
     }
   }, [playingSentenceIndex]);
 
-  const handleWordClick = (e: React.MouseEvent, word: string) => {
+  const handleWordClick = useCallback((e: React.MouseEvent<HTMLSpanElement>, word: string): void => {
     e.stopPropagation();
     onWordClick?.(word);
-  };
+  }, [onWordClick]);
 
-  const handleWordDoubleClick = async (e: React.MouseEvent, word: string) => {
+  const handleWordDoubleClick = useCallback(async (e: React.MouseEvent<HTMLSpanElement>, word: string): Promise<void> => {
+    e.preventDefault();
     e.stopPropagation();
+    
+    // 防止双击选中整个句子
+    const selection = window.getSelection();
+    const target = e.currentTarget;
+    
+    if (selection && target) {
+      selection.removeAllRanges();
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      selection.addRange(range);
+      
+      // 阻止选择扩散
+      document.addEventListener('selectionchange', () => {
+        const newSelection = window.getSelection();
+        if (newSelection?.rangeCount && newSelection.rangeCount > 0) {
+          const currentRange = newSelection.getRangeAt(0);
+          if (currentRange && !target.contains(currentRange.commonAncestorContainer)) {
+            newSelection.removeAllRanges();
+            newSelection.addRange(range);
+          }
+        }
+      }, { once: true });
+    }
     
     // Stop any currently playing sentence
     if (playingSentenceIndex !== null) {
@@ -237,34 +395,33 @@ export default function SentenceHighlighter({
         });
       } catch (error) {
         console.error('Failed to play word:', error);
+        setPlayingWord(null);
       }
-      setPlayingWord(null);
     }
-  };
+  }, [playingWord, isPlaying, playingSentenceIndex, stopPlaying, playText]);
 
-  const handleSentenceClick = (sentence: string, _index: number) => {
+  const handleSentenceClick = useCallback((sentence: string, _index: number): void => {
     onSentenceClick?.(sentence);
-  };
+  }, [onSentenceClick]);
 
-  const handleSentencePlay = async (e: React.MouseEvent, sentence: string, index: number) => {
+  const handleSentencePlay = useCallback(async (e: React.MouseEvent<HTMLButtonElement>, sentence: string, index: number): Promise<void> => {
     e.stopPropagation();
     handleSentenceClick(sentence, index);
     
-    // 停止当前播放的单词
-    if (playingWord) {
-      resetState();
-      return;
-    }
-
-    // 如果点击当前正在播放的句子，则停止播放
+    // 如果正在播放，则停止播放
     if (playingSentenceIndex === index) {
       resetState();
       return;
     }
 
-    // 始播放新句子
-    playWithRetry(index);
-  };
+    // 开始播放新句子
+    setIsLoading(true);
+    try {
+      await playWithRetry(index);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [playingSentenceIndex, resetState, playWithRetry, handleSentenceClick]);
 
   // 监听网络状态变化
   useEffect(() => {
@@ -278,109 +435,62 @@ export default function SentenceHighlighter({
     return () => window.removeEventListener('online', handleOnline);
   }, [playingSentenceIndex, isPlaying, playWithRetry]);
 
-  // 渲染单词部分的代码
-  const renderWord = useCallback((part: { type: string; content: string }, partIndex: number, isPlaying: boolean) => {
-    if (part.type === 'word') {
-      const isCurrentWord = isPlaying && part.content === playingWord;
-      return (
-        <span
-          key={partIndex}
-          data-word={part.content}
-          className={cn(
-            "inline-block cursor-pointer mx-[1px]",
-            !isPlaying && "hover:text-primary/70",
-            isCurrentWord ? [
-              "text-primary font-medium",
-              "bg-primary/5 px-1 py-0.5 rounded-md",
-              "border-b-2 border-primary"
-            ] : "text-inherit"
-          )}
-          onClick={(e) => handleWordClick(e, part.content)}
-          onDoubleClick={(e) => handleWordDoubleClick(e, part.content)}
-        >
-          {part.content}
-        </span>
-      );
-    }
-    return (
-      <span 
-        key={partIndex}
-        className="inline-block mx-[1px]"
-      >
-        {part.content}
-      </span>
-    );
-  }, [playingWord, handleWordClick, handleWordDoubleClick]);
+  // 修改 ref 回调函数
+  const setRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
+    sentenceRefs.current[index] = el;
+  }, []);
 
+  // 更新组件的渲染返回
   return (
-    <div className={`space-y-2 ${className}`}>
-      {sentences.map((sentence, index) => {
-        const parts = parseTextContent(sentence);
-        const isSelected = sentence === selectedSentence;
-        const isPlaying = playingSentenceIndex === index;
-        
-        return (
-          <div
-            key={index}
-            ref={(el: HTMLDivElement | null) => {
-              if (sentenceRefs.current) {
-                sentenceRefs.current[index] = el;
-              }
-            }}
-            className={cn(
-              "relative group cursor-pointer p-2",
-              "transition-colors duration-200",
-              !isPlaying && !isSelected && "hover:bg-accent/5",
-              isSelected && [
-                "bg-primary/5",
-                "rounded-lg"
-              ],
-              isPlaying && [
-                "bg-primary/5",
-                "rounded-lg"
-              ]
-            )}
-            style={{
-              fontSize: isSelected ? `${fontSizeScale * 100}%` : undefined
-            }}
-            onClick={() => handleSentenceClick(sentence, index)}
-            onMouseEnter={() => setHoveredSentenceIndex(index)}
-            onMouseLeave={() => setHoveredSentenceIndex(null)}
-          >
-            <div className="relative">
-              <div className="inline-block">
-                {parts.map((part, partIndex) => renderWord(part, partIndex, isPlaying))}
-              </div>
-
-              {enableTTS && (hoveredSentenceIndex === index || isPlaying) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={isLoading}
-                  className={cn(
-                    "absolute -right-1 top-1/2 -translate-y-1/2",
-                    "opacity-0 group-hover:opacity-100",
-                    "transition-opacity duration-200",
-                    isPlaying && "opacity-100"
-                  )}
-                  onClick={(e) => handleSentencePlay(e, sentence, index)}
-                >
-                  {isLoading ? (
-                    <div className="animate-spin h-4 w-4 border-2 border-primary/20 border-t-primary rounded-full" />
-                  ) : isPlaying ? (
-                    <PauseCircle className="h-4 w-4" />
-                  ) : (
-                    <PlayCircle className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-        );
-      })}
-      
+    <div 
+      className={cn(
+        "prose w-full",
+        "px-4 sm:px-6 md:px-8",
+        "text-[16px]",
+        "relative",
+        "font-normal leading-relaxed",
+        "flex flex-col",
+        className
+      )}
+      style={{
+        letterSpacing: 'normal',
+        wordSpacing: 'normal',
+        fontFeatureSettings: '"kern"',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        minWidth: 0,
+        flex: '1 1 auto'
+      }}
+    >
+      {sentences.map((sentence, index) => (
+        <div
+          key={index}
+          ref={setRef(index)}
+          className={cn(
+            "group relative w-full",
+            "flex flex-col",
+            "min-w-0"
+          )}
+          onClick={() => handleSentenceClick(sentence, index)}
+          onMouseEnter={() => setHoveredSentenceIndex(index)}
+          onMouseLeave={() => setHoveredSentenceIndex(null)}
+        >
+          {renderSentence(
+            sentence,
+            selectedSentence === sentence,
+            playingSentenceIndex === index,
+            playingWord,
+            fontSizeScale || 1,
+            handleWordClick,
+            handleWordDoubleClick,
+            enableTTS && hoveredSentenceIndex === index,
+            (e) => handleSentencePlay(e, sentence, index),
+            isLoading && playingSentenceIndex === index
+          )}
+        </div>
+      ))}
       {enableTTS && (
-        <ArticleTTS 
+        <ArticleTTS
           ref={ttsRef}
           sentences={sentences}
           onSentenceHighlight={(sentence) => {
@@ -389,6 +499,10 @@ export default function SentenceHighlighter({
             if (index !== -1) {
               setPlayingSentenceIndex(index);
             }
+          }}
+          onComplete={() => {
+            setPlayingSentenceIndex(null);
+            setPlayingWord(null);
           }}
         />
       )}

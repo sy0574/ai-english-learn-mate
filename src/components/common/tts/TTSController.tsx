@@ -48,13 +48,15 @@ import { TTSEvent } from '@/lib/tts/domain/types';
 export interface TTSControllerProps {
   /** 要朗读的文本，可以是单个字符串或字符串数组 */
   text: string | string[];
-  /** 当前朗读文本变化时调 */
+  /** 当前朗读文本变化时调用 */
   onTextHighlight?: (text: string) => void;
+  /** 播放完成时调用 */
+  onComplete?: () => void;
   /** 自定义样式类 */
   className?: string;
   /** 控制器的定位方式 */
   position?: 'fixed' | 'relative';
-  /** 是否显示置面板 */
+  /** 是否显示设置面板 */
   showSettings?: boolean;
 }
 
@@ -72,6 +74,7 @@ export interface TTSControllerRef {
 const TTSController = forwardRef<TTSControllerRef, TTSControllerProps>(({
   text,
   onTextHighlight,
+  onComplete,
   className,
   position = 'fixed',
   showSettings = true,
@@ -132,14 +135,18 @@ const TTSController = forwardRef<TTSControllerRef, TTSControllerProps>(({
     const unsubscribeComplete = eventEmitter.subscribe(TTSEvent.ItemComplete, () => {
       setCurrentIndex(prev => {
         const nextIndex = prev + 1;
-        return nextIndex < texts.length ? nextIndex : prev;
+        if (nextIndex >= texts.length) {
+          onComplete?.();  // 当所有文本播放完成时调用 onComplete
+          return prev;
+        }
+        return nextIndex;
       });
     });
 
     return () => {
       unsubscribeComplete();
     };
-  }, [texts]);
+  }, [texts, onComplete]);
 
   const handlePlay = useCallback(async (startIndex: number = currentIndex) => {
     try {
