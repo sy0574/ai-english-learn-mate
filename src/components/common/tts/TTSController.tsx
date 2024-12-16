@@ -9,7 +9,7 @@ import {
   RotateCw, 
   Mic2, 
   FileText, 
-  Settings, 
+  Speech, // User2
   Volume2,
   Headphones,
   Radio,
@@ -25,6 +25,12 @@ import { cn } from '@/lib/utils';
 import { PlayMode } from '@/types';
 import { TTSEventEmitter } from '@/lib/tts/events/TTSEventEmitter';
 import { TTSEvent } from '@/lib/tts/domain/types';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 /**
  * 统一的 TTS 控制器组件
@@ -416,18 +422,28 @@ const TTSController = forwardRef<TTSControllerRef, TTSControllerProps>(({
         )}>
           {!isCollapsed && (
             <div className="flex items-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 relative"
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                title="语音设置"
-              >
-                <Volume2 className="h-5 w-5" />
-                {isSettingsOpen && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
-                )}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                      className={cn(
+                        "relative",
+                        isSettingsOpen && "bg-accent",
+                        !isSettingsOpen && "animate-pulse-subtle after:absolute after:content-[''] after:w-2 after:h-2 after:bg-green-500 after:rounded-full after:-top-1 after:-right-1"
+                      )}
+                    >
+                      <Speech className="h-5 w-5" />
+                      <span className="sr-only">Change Speake Voicer</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>换朗读者声音</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
 
