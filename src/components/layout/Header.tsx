@@ -28,7 +28,7 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
           <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
             {isSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
-          <h2 className="text-xl font-semibold">AI智学👫</h2>
+          <h2 className="text-xl font-semibold">Learn Mate AI👫</h2>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/member-center">

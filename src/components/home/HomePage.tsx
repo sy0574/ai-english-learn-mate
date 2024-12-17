@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import TTSController from '@/components/common/tts/TTSController';
 import { useState } from 'react';
+import ContactInfo from '@/components/common/ContactInfo';
 
 export default function HomePage() {
   const [selectedText, setSelectedText] = useState('');
@@ -94,6 +95,7 @@ export default function HomePage() {
           </div>
         </Card>
       </div>
+      <ContactInfo />
     </div>
   );
 }
