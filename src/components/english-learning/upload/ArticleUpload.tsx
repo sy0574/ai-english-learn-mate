@@ -163,7 +163,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
         className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-6"
       >
         <Upload className="w-4 h-4" />
-        添加新书
+        上传要学的内容
       </Button>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
@@ -189,7 +189,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="min-h-[200px]"
-                placeholder="粘贴内容"
+                placeholder="文字输入/粘贴输入"
                 required
               />
               <div className="flex justify-end items-center gap-3">
@@ -262,7 +262,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
                   ) : (
                     <>
                       <ImagePlus className="h-4 w-4" />
-                      OCR识别
+                      拍照输入
                     </>
                   )}
                 </Label>

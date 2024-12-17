@@ -71,10 +71,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8 p-8">
         <div className="text-center">
           <h2 className="text-2xl font-bold">
-            {isLogin ? '登录' : '注册'} AI英文学习助手
+            {isLogin ? '登录' : '注册'} Learn Mate AI👫
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {isLogin ? '开始您的学习之旅' : '创建新账号'}
+            {isLogin ? '您的智能学习助理' : '开启新的学习体验'}
           </p>
         </div>
 
