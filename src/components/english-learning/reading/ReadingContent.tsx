@@ -20,7 +20,7 @@ export default function ReadingContent({
   const wordCount = article.content.trim().split(/\s+/).length;
 
   return (
-    <div className="flex flex-col p-6">
+    <div className="flex flex-col py-6 px-4">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold mb-4 apple-text-primary">
           {article.title}
@@ -47,7 +47,7 @@ export default function ReadingContent({
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow-sm p-6">
+      <div className="bg-card rounded-lg shadow-sm py-6 px-4">
         <SentenceHighlighter
           text={article.content}
           onWordClick={onWordClick}

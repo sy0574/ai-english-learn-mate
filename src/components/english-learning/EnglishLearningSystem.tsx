@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Book, Library } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Article } from '@/types/article';
 import type { AIAnalysisResult } from '@/lib/api/types';
 import { useArticles } from '@/lib/articles';
@@ -9,7 +7,6 @@ import { toast } from 'sonner';
 import { useCourseStore } from '@/stores/courseStore';
 import ReadingSection from './reading/ReadingSection';
 import AnalysisSection from './reading/AnalysisSection';
-import ReadingLibrary from './reading/ReadingLibrary';
 import CollapsibleContainer from './reading/CollapsibleContainer';
 
 export default function EnglishLearningSystem() {
@@ -22,16 +19,13 @@ export default function EnglishLearningSystem() {
     setAiGeneratedContent,
     selectedArticle,
     setSelectedArticle,
-    activeTab,
-    setActiveTab,
   } = useCourseStore();
 
   useEffect(() => {
     if (!loading && articles.length > 0 && !selectedArticle) {
       setSelectedArticle(articles[0]);
-      setActiveTab('reading');
     }
-  }, [loading, articles, selectedArticle, setSelectedArticle, setActiveTab]);
+  }, [loading, articles, selectedArticle, setSelectedArticle]);
 
   const analysis = selectedArticle ? analyzeArticle(selectedArticle.content) : null;
   const aiAnalysis = selectedArticle ? aiGeneratedContent[selectedArticle.id] as AIAnalysisResult : null;
@@ -52,11 +46,6 @@ export default function EnglishLearningSystem() {
     }
   };
 
-  const handleArticleSelect = (article: Article) => {
-    setSelectedArticle(article);
-    setActiveTab('reading');
-  };
-
   const handleAiAnalysisComplete = (result: AIAnalysisResult) => {
     if (selectedArticle) {
       setAiGeneratedContent(selectedArticle.id, result);
@@ -72,57 +61,28 @@ export default function EnglishLearningSystem() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] overflow-hidden">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="px-4 sm:px-6 lg:px-8 border-b">
-          <TabsList className="w-full justify-start bg-transparent">
-            <TabsTrigger 
-              value="reading" 
-              className="data-[state=active]:text-primary data-[state=active]:border-b-2 
-                         data-[state=active]:border-primary rounded-none px-6"
-            >
-              <Book className="w-4 h-4 mr-2" />
-              我的课桌
-            </TabsTrigger>
-            <TabsTrigger 
-              value="library"
-              className="data-[state=active]:text-primary data-[state=active]:border-b-2 
-                         data-[state=active]:border-primary rounded-none px-6"
-            >
-              <Library className="w-4 h-4 mr-2" />
-              我的书架
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        
-        <TabsContent value="reading" className="flex-1 overflow-hidden p-4 sm:p-6 lg:p-8">
-          <div className="h-full flex gap-3"> 
-            <CollapsibleContainer direction="left" className="w-[700px]">
-              <div className="flex-1 min-w-0">
-                <ReadingSection 
-                  currentArticle={selectedArticle}
-                  onArticleUpload={handleArticleUpload}
-                  onWordSelect={handleWordSelect}
-                  onSentenceSelect={handleSentenceSelect}
-                  selectedSentence={selectedSentence}
-                />
-              </div>
-            </CollapsibleContainer>
-            <AnalysisSection 
-              selectedText={selectedArticle?.content || ''}
-              analysis={analysis}
-              aiAnalysis={aiAnalysis}
-              onAiAnalysisComplete={handleAiAnalysisComplete}
-              selectedWord={selectedWord}
+    <div className="h-[calc(100vh-4rem)] overflow-hidden flex bg-background">
+      <div className="flex-1 flex gap-3 p-4"> 
+        <CollapsibleContainer direction="left" className="w-[700px]">
+          <div className="flex-1 min-w-0 h-full">
+            <ReadingSection 
+              currentArticle={selectedArticle}
+              onArticleUpload={handleArticleUpload}
+              onWordSelect={handleWordSelect}
+              onSentenceSelect={handleSentenceSelect}
               selectedSentence={selectedSentence}
             />
           </div>
-        </TabsContent>
-
-        <TabsContent value="library" className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-          <ReadingLibrary onSelectReading={handleArticleSelect} />
-        </TabsContent>
-      </Tabs>
+        </CollapsibleContainer>
+        <AnalysisSection 
+          selectedText={selectedArticle?.content || ''}
+          analysis={analysis}
+          aiAnalysis={aiAnalysis}
+          onAiAnalysisComplete={handleAiAnalysisComplete}
+          selectedWord={selectedWord}
+          selectedSentence={selectedSentence}
+        />
+      </div>
     </div>
   );
 }

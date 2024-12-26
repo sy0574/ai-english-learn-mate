@@ -8,7 +8,8 @@ import {
   BookText,
   Target,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Type
 } from 'lucide-react';
 import ArticleMindMap from '../mindmap/ArticleMindMap';
 import VocabularySection from './VocabularySection';
@@ -53,7 +54,10 @@ export default function AnalysisSection({
         {analysis ? (
           <Tabs defaultValue="vocabulary" className="flex flex-col h-full">
             <div className="border-b p-4">
-              <h3 className="text-xl font-semibold mb-2">知识能力</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <BookOpen className="w-5 h-5 text-goblin-500" />
+                <h3 className="text-xl font-semibold apple-text-primary">词汇语法</h3>
+              </div>
               <TabsList className="w-full justify-start bg-secondary rounded-lg p-1">
                 <TabsTrigger
                   value="vocabulary"

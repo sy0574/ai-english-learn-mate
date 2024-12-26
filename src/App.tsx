@@ -9,6 +9,7 @@ import AdminDashboard from '@/components/admin/AdminDashboard';
 import SettingsPage from '@/components/settings/SettingsPage';
 import MemberCenter from '@/components/subscription/MemberCenter';
 import HomePage from '@/components/home/HomePage';
+import LibraryPage from '@/components/english-learning/LibraryPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/progress" element={<LearningProgress />} />
                   <Route path="/courses" element={<EnglishLearningSystem />} />
+                  <Route path="/courses/library" element={<LibraryPage />} />
                   <Route path="/ai-assistant" element={<div>AI助手</div>} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/member-center" element={<MemberCenter />} />

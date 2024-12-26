@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Moon, Sun, Crown } from 'lucide-react';
+import { Moon, Sun, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/theme-provider';
 import { Link } from 'react-router-dom';
@@ -11,23 +11,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface HeaderProps {
-  isSidebarOpen: boolean;
-  onToggleSidebar: () => void;
-}
-
-export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) {
+export default function Header() {
   const { theme: _theme, setTheme } = useTheme();
   const { currentTier } = useSubscription();
   const currentPlan = PRICING_PLANS[currentTier];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onToggleSidebar}>
-            {isSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </Button>
+        <div className="flex items-center gap-4 ml-0.1">
           <h2 className="text-xl font-semibold">Learn Mate AI👫</h2>
         </div>
         <div className="flex items-center gap-2">

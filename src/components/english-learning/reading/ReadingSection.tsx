@@ -20,9 +20,10 @@ export default function ReadingSection({
   onSentenceSelect,
   selectedSentence
 }: ReadingSectionProps) {
+  // 调整容器高度
   return (
-    <Card className="h-[calc(100vh-10rem)] flex flex-col">
-      <ReadingHeader onArticleUpload={onArticleUpload} />
+    <Card className="h-full flex flex-col">
+      <ReadingHeader onArticleUpload={onArticleUpload} /> 
       
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-full">
@@ -34,7 +35,7 @@ export default function ReadingSection({
               selectedSentence={selectedSentence}
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-center apple-text-secondary">
+            <div className="h-full flex items-center justify-center text-center text-muted-foreground">
               <div>
                 <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>添加文章或从阅读材料库中选择文章开始阅读训练</p>

@@ -163,7 +163,7 @@ export default function ArticleUpload({ onUpload }: ArticleUploadProps) {
         className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-6"
       >
         <Upload className="w-4 h-4" />
-        上传要学的内容
+        上传我的内容
       </Button>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>

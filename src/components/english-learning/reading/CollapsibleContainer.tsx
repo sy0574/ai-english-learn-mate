@@ -39,8 +39,8 @@ export default function CollapsibleContainer({
         className={cn(
           'absolute h-7 w-7 top-9',// 通过top 值来控制箭头按钮的垂直位置
           direction === 'right' 
-            ? (isCollapsed ? '-right-10' : 'left-0.5')
-            : (isCollapsed ? '-left-10' : 'right-0.5'),
+            ? (isCollapsed ? '-right-5' : 'left-0.5')// 调整容器收齐后两侧的箭头位置
+            : (isCollapsed ? '-left-5' : 'right-0.5'),
           'hover:bg-accent hover:text-accent-foreground',
           'rounded-full border border-input bg-background',
           'shadow-sm z-10'
