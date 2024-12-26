@@ -1,6 +1,10 @@
-import { Clock } from 'lucide-react';
+import { Clock, Download, Loader2 } from 'lucide-react';
 import type { Article } from '@/types/article';
 import SentenceHighlighter from './SentenceHighlighter';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { TTSStore } from '@/lib/tts/store/TTSStore';
+import { useState } from 'react';
 
 interface ReadingContentProps {
   article: Article | null;
@@ -15,9 +19,65 @@ export default function ReadingContent({
   onSentenceClick,
   selectedSentence 
 }: ReadingContentProps) {
+  const { toast } = useToast();
+  const [isDownloading, setIsDownloading] = useState(false);
+  
   if (!article) return null;
 
   const wordCount = article.content.trim().split(/\s+/).length;
+
+  const handleDownloadAudio = async () => {
+    if (isDownloading) return;
+    
+    try {
+      setIsDownloading(true);
+      toast({
+        title: "正在生成音频...",
+        description: "请稍候，正在为您生成文章音频",
+      });
+
+      const config = TTSStore.getInstance().getState().config;
+      const response = await fetch('https://ai-english-learn-mate-tts.bolone.cn/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: article.content,
+          voice: config.voice,
+          rate: config.rate,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('生成音频失败');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${article.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "下载成功",
+        description: "音频文件已保存到您的下载文件夹",
+      });
+    } catch (error) {
+      console.error('Download audio error:', error);
+      toast({
+        variant: "destructive",
+        title: "下载失败",
+        description: "生成音频时出现错误，请稍后重试",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col py-6 px-4">
@@ -47,7 +107,7 @@ export default function ReadingContent({
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow-sm py-6 px-4">
+      <div className="relative bg-card rounded-lg shadow-sm py-6 px-4">
         <SentenceHighlighter
           text={article.content}
           onWordClick={onWordClick}
@@ -56,6 +116,23 @@ export default function ReadingContent({
           className="leading-relaxed apple-text-primary"
           enableTTS={true}
         />
+        
+        <div className="sticky bottom-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="icon"
+            className="hover:bg-accent"
+            onClick={handleDownloadAudio}
+            title={isDownloading ? "下载中..." : "下载音频"}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
