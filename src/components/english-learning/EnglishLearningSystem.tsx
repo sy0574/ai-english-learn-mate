@@ -10,6 +10,7 @@ import { useCourseStore } from '@/stores/courseStore';
 import ReadingSection from './reading/ReadingSection';
 import AnalysisSection from './reading/AnalysisSection';
 import ReadingLibrary from './reading/ReadingLibrary';
+import CollapsibleContainer from './reading/CollapsibleContainer';
 
 export default function EnglishLearningSystem() {
   const [selectedWord, setSelectedWord] = useState<string>();
@@ -93,18 +94,20 @@ export default function EnglishLearningSystem() {
             </TabsTrigger>
           </TabsList>
         </div>
-
+        
         <TabsContent value="reading" className="flex-1 overflow-hidden p-4 sm:p-6 lg:p-8">
-          <div className="h-full flex gap-6">
-            <div className="flex-1 min-w-0">
-              <ReadingSection 
-                currentArticle={selectedArticle}
-                onArticleUpload={handleArticleUpload}
-                onWordSelect={handleWordSelect}
-                onSentenceSelect={handleSentenceSelect}
-                selectedSentence={selectedSentence}
-              />
-            </div>
+          <div className="h-full flex gap-3"> 
+            <CollapsibleContainer direction="left" className="w-[700px]">
+              <div className="flex-1 min-w-0">
+                <ReadingSection 
+                  currentArticle={selectedArticle}
+                  onArticleUpload={handleArticleUpload}
+                  onWordSelect={handleWordSelect}
+                  onSentenceSelect={handleSentenceSelect}
+                  selectedSentence={selectedSentence}
+                />
+              </div>
+            </CollapsibleContainer>
             <AnalysisSection 
               selectedText={selectedArticle?.content || ''}
               analysis={analysis}

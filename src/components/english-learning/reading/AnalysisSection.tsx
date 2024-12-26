@@ -48,7 +48,7 @@ export default function AnalysisSection({
   }, [selectedSentence]);
 
   return (
-    <CollapsibleContainer>
+    <CollapsibleContainer direction="right">
       <Card className="flex-1 flex flex-col h-full" ref={analysisRef}>
         {analysis ? (
           <Tabs defaultValue="vocabulary" className="flex flex-col h-full">

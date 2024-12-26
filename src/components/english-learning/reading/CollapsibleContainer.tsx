@@ -6,44 +6,54 @@ import { Button } from '@/components/ui/button';
 interface CollapsibleContainerProps {
   children: ReactNode;
   className?: string;
+  direction?: 'left' | 'right';
 }
 
 export default function CollapsibleContainer({ 
   children,
-  className 
+  className,
+  direction = 'right'
 }: CollapsibleContainerProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const getChevronIcon = () => {
+    if (direction === 'right') {
+      return isCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />;
+    }
+    return isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />;
+  };
+
   return (
     <div className={cn(
-      'w-[600px] transition-all duration-300 ease-in-out',
-      isCollapsed ? 'w-0' : '',
+      'transition-all duration-300 ease-in-out relative h-full',
+      {
+        'w-12': isCollapsed,
+        'w-[700px]': !isCollapsed && !className,
+        'ml-auto': direction === 'right'
+      },
       className
     )}>
-      <div className="relative h-full">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            'absolute right-2 top-4 h-8 w-8',
-            'hover:bg-accent hover:text-accent-foreground',
-            'rounded-full border border-input bg-background',
-            'shadow-sm z-10'
-          )}
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? (
-            <ChevronLeft className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
-        <div className={cn(
-          'h-full transition-all duration-300 overflow-hidden',
-          isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-full'
-        )}>
-          {children}
-        </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(
+          'absolute h-7 w-7 top-9',// 通过top 值来控制箭头按钮的垂直位置
+          direction === 'right' 
+            ? (isCollapsed ? '-right-10' : 'left-0.5')
+            : (isCollapsed ? '-left-10' : 'right-0.5'),
+          'hover:bg-accent hover:text-accent-foreground',
+          'rounded-full border border-input bg-background',
+          'shadow-sm z-10'
+        )}
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        {getChevronIcon()}
+      </Button>
+      <div className={cn(
+        'h-full transition-all duration-300 overflow-hidden',
+        isCollapsed ? 'invisible w-0' : 'visible w-full'
+      )}>
+        {children}
       </div>
     </div>
   );

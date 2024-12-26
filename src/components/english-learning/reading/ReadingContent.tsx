@@ -20,13 +20,13 @@ export default function ReadingContent({
   const wordCount = article.content.trim().split(/\s+/).length;
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="px-6">
+    <div className="flex flex-col p-6">
+      <div className="mb-6">
         <h2 className="text-2xl font-semibold mb-4 apple-text-primary">
           {article.title}
         </h2>
         
-        <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap gap-2">
             {article.tags?.map((tag) => (
               <span
@@ -47,19 +47,15 @@ export default function ReadingContent({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6">
-        <div className="w-full">
-          <div className="bg-card rounded-lg shadow-sm overflow-hidden p-6">
-            <SentenceHighlighter
-              text={article.content}
-              onWordClick={onWordClick}
-              onSentenceClick={onSentenceClick}
-              selectedSentence={selectedSentence}
-              className="leading-relaxed apple-text-primary"
-              enableTTS={true}
-            />
-          </div>
-        </div>
+      <div className="bg-card rounded-lg shadow-sm p-6">
+        <SentenceHighlighter
+          text={article.content}
+          onWordClick={onWordClick}
+          onSentenceClick={onSentenceClick}
+          selectedSentence={selectedSentence}
+          className="leading-relaxed apple-text-primary"
+          enableTTS={true}
+        />
       </div>
     </div>
   );
